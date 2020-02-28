@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block page_content %}
+<div class="container">
+    {% if user %}
+        <div class="page-header">
+            <h1>Allo {{ user }}!</h1>
+        </div>
+        <ul>
+           <li><a href="{{ url_for('list_users') }}">Liste des Usagers</a></li>
+        </ul>
+    {% else %}
+        <div class="page-header">
+            <h1>Bonjour étranger! SVP, connectez vous...</h1>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
