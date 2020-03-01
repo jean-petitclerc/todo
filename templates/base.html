@@ -19,6 +19,7 @@
       <ul class="nav navbar-nav">
         <li><a href="{{ url_for('index') }}">Acceuil</a></li>
         {% if session['user_email'] %}
+          <li><a href="{{ url_for('list_tasklists') }}">Listes</a></li>
           <li><a href="{{ url_for('list_users') }}">Usagers</a></li>
           <li><a href="{{ url_for('logout') }}">Déconnecter</a></li>
         {% else %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block page_content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Liste des Utilisateurs</h1>
+    </div>
+    <p>
+        {% if admin_users %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Prénom</th>
+                    <th>Nom</th>
+                    <th>Courriel</th>
+                    <th class="text-center">Activé</th>
+                    <th class="text-center">Activer</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in admin_users %}
+                    <tr>
+                        <td>{{ user['first_name'] }}</td>
+                        <td>{{ user['last_name'] }}</td>
+                        <td>{{ user['user_email'] }}</td>
+                        {% if user.activated %}
+                            <td class="text-center">Oui</td>
+                            <td class="text-center">N/A</td>
+                        {% else %}
+                            <td class="text-center">Non</td>
+                            <td class="text-center"><a href="{{ url_for('act_user', user_id=user['user_id']) }}"
+                                class="btn btn-primary btn-xs" data-title="Modifier"><span
+                                class="glyphicon glyphicon-ok"></span></a></td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <em>Il n'y a pas d'utilisateur dans la base de données</em>
+        {% endif %}
+    </p>
+    <a href="{{ url_for('index') }}" class="btn btn-default">Retour</a>
+    <p>&nbsp;</p>
+</div>
+{% endblock %}

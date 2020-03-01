@@ -17,6 +17,8 @@ bootstrap = Bootstrap(app)
 db = SQLAlchemy(app)
 
 
+# Database Model
+# ----------------------------------------------------------------------------------------------------------------------
 class AdminUser(db.Model):
     __tablename__ = 'tadmin_user'
     user_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
@@ -24,17 +26,42 @@ class AdminUser(db.Model):
     last_name = db.Column(db.String(30), nullable=False)
     user_email = db.Column(db.String(80), nullable=False, unique=True)
     user_pass = db.Column(db.String(100), nullable=False)
-    activated = db.Column(db.Boolean(), nullable=False, default=True)
+    activated = db.Column(db.Boolean(), nullable=False, default=False)
+    audit_crt_ts = db.Column(db.DateTime(), nullable=False)
 
-    def __init__(self, first_name, last_name, user_email, user_pass):
+    def __init__(self, first_name, last_name, user_email, user_pass, audit_crt_ts):
         self.first_name = first_name
         self.last_name = last_name
         self.user_email = user_email
         self.user_pass = user_pass
+        self.audit_crt_ts = audit_crt_ts
 
     def __repr__(self):
         return '<user: {}>'.format(self.user_email)
 
+
+class TaskList(db.Model):
+    __tablename__ = 'ttask_list'
+    list_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
+    list_name = db.Column(db.String(50), nullable=False)
+    list_desc = db.Column(db.Text(), nullable=False, default='')
+    audit_crt_user = db.Column(db.String(80), nullable=False)
+    audit_crt_ts = db.Column(db.DateTime(), nullable=False)
+    audit_upd_user = db.Column(db.String(80), nullable=True)
+    audit_upd_ts = db.Column(db.DateTime(), nullable=True)
+
+    def __init__(self, list_name, list_desc, audit_crt_user, audit_crt_ts):
+        self.list_name = list_name
+        self.list_desc = list_desc
+        self.audit_crt_user = audit_crt_user
+        self.audit_crt_ts = audit_crt_ts
+
+    def __repr__(self):
+        return '<task_list: {}'.format(self.list_name)
+
+
+# Classes pour définir les formulaires WTF
+# ----------------------------------------------------------------------------------------------------------------------
 
 # Formulaire web pour l'écran de login
 class LoginForm(FlaskForm):
@@ -59,7 +86,28 @@ class RegisterForm(FlaskForm):
     submit = SubmitField('S\'enrégistrer')
 
 
+# Formulaires pour ajouter une liste de tâches
+class AddTasklistForm(FlaskForm):
+    list_name = StringField('Nom de la liste', validators=[DataRequired(message='Le nom est requis.')])
+    list_desc = TextAreaField('Description')
+    submit = SubmitField('Ajouter')
+
+
 # The following functions are views
+# ----------------------------------------------------------------------------------------------------------------------
+
+# Custom error pages
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    return render_template('500.html'), 500
+
+
+# Index
 @app.route('/')
 def index():
     if not logged_in():
@@ -69,6 +117,7 @@ def index():
     return render_template('todo.html', user=first_name)
 
 
+# Views for Register, logging in, logging out and listing users
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     # The method is GET when the form is displayed and POST to process the form
@@ -91,26 +140,13 @@ def login():
 @app.route('/logout')
 def logout():
     app.logger.debug('Entering logout()')
+    session.pop('user_id', None)
     session.pop('first_name', None)
     session.pop('last_name', None)
     session.pop('user_email', None)
     session.pop('active_time', None)
     flash('Vous êtes maintenant déconnecté.')
     return redirect(url_for('index'))
-
-
-def logged_in():
-    user_email = session.get('user_email', None)
-    if user_email:
-        active_time = session['active_time']
-        delta = datetime.now() - active_time
-        if (delta.days > 0) or (delta.seconds > 1800):
-            flash('Votre session est expirée.')
-            return False
-        session['active_time'] = datetime.now()
-        return True
-    else:
-        return False
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -127,11 +163,12 @@ def register():
             flash('Cet usager existe déjà. Veuillez vous connecter.')
             return redirect(url_for('login'))
         else:
-            user = AdminUser(first_name, last_name, user_email, user_pass)
-            db.session.add(user)
-            db.session.commit()
-            flash('Come back when your login will be activated.')
-            return redirect(url_for('index'))
+            if db_add_user(first_name, last_name, user_email, user_pass):
+                flash('Vous pourrez vous connecter quand votre usager sera activé.')
+                return redirect(url_for('login'))
+            else:
+                flash('Une erreur de base de données est survenue.')
+                abort(500)
     return render_template('register.html', form=form)
 
 
@@ -139,8 +176,97 @@ def register():
 def list_users():
     if not logged_in():
         return redirect(url_for('login'))
-    # pred_vars = Predef_Var.query.order_by(Predef_Var.var_name).all()
-    # return render_template('list_vars.html', pred_vars=pred_vars)
+    try:
+        admin_users = AdminUser.query.order_by(AdminUser.first_name).all()
+        return render_template('list_users.html', admin_users=admin_users)
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return redirect(url_for('index'))
+
+
+@app.route('/act_user/<int:user_id>', methods=['GET', 'POST'])
+def act_user(user_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    if db_act_user(user_id):
+        flash("L'utilisateur est activé.")
+    else:
+        flash("Quelque chose n'a pas fonctionné.")
+    return redirect(url_for('list_users'))
+
+
+# Views for Lists of Tasks
+@app.route('/list_tasklists')
+def list_tasklists():
+    if not logged_in():
+        return redirect(url_for('login'))
+    tasklists = TaskList.query.order_by(TaskList.list_name).all()
+    return render_template('list_tasklists.html', tasklists=tasklists)
+
+
+@app.route('/add_tasklist', methods=['GET', 'POST'])
+def add_tasklist():
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_tasklist')
+    form = AddTasklistForm()
+    if form.validate_on_submit():
+        app.logger.debug('Inserting a new tasklist')
+        list_name = request.form['list_name']
+        list_desc = request.form['list_desc']
+        if db_add_tasklist(list_name, list_desc):
+            flash('La nouvelle liste est ajoutée.')
+            return redirect(url_for('list_tasklists'))
+        else:
+            flash('Une erreur de base de données est survenue.')
+            abort(500)
+    return render_template('add_tasklist.html', form=form)
+
+
+# Application functions
+# ----------------------------------------------------------------------------------------------------------------------
+def logged_in():
+    user_email = session.get('user_email', None)
+    if user_email:
+        active_time = session['active_time']
+        delta = datetime.now() - active_time
+        if (delta.days > 0) or (delta.seconds > 1800):
+            flash('Votre session est expirée.')
+            return False
+        session['active_time'] = datetime.now()
+        return True
+    else:
+        return False
+
+
+# Database functions
+# ----------------------------------------------------------------------------------------------------------------------
+
+# Database functions for AdminUser
+def db_add_user(first_name, last_name, user_email, user_pass):
+    audit_crt_ts = datetime.now()
+    try:
+        user = AdminUser(first_name, last_name, user_email, user_pass, audit_crt_ts)
+        if user_email == "jean.petitclerc@groupepp.com":
+            user.activated = True
+        db.session.add(user)
+        db.session.commit()
+        return True
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+
+
+def db_act_user(user_id):
+    audit_upd_ts = datetime.now()
+    try:
+        user = AdminUser.query.get(user_id)
+        user.activated = True
+        db.session.commit()
+        return True
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
 
 
 def db_user_exists(user_email):
@@ -188,6 +314,7 @@ def db_validate_user(user_email, password):
             return False
 
         if check_password_hash(user.user_pass, password):
+            session['user_id'] = user.user_id
             session['user_email'] = user.user_email
             session['first_name'] = user.first_name
             session['last_name'] = user.last_name
@@ -199,6 +326,20 @@ def db_validate_user(user_email, password):
         app.logger.error('DB Error' + str(e))
         flash("Connection impossible. Une erreur interne s'est produite.")
         return False
+
+
+# DB functions for TaskList
+def db_add_tasklist(list_name, list_desc):
+    audit_crt_user = session.get('user_email', None)
+    audit_crt_ts = datetime.now()
+    tasklist = TaskList(list_name, list_desc)
+    try:
+        db.session.add(tasklist)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
 
 
 # Start the server for the application
