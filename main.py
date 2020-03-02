@@ -60,8 +60,31 @@ class TaskList(db.Model):
         return '<task_list: {}'.format(self.list_name)
 
 
+class Tag(db.Model):
+    __tablename__ = 'ttag'
+    tag_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
+    tag_name = db.Column(db.String(50), nullable=False)
+    audit_crt_user = db.Column(db.String(80), nullable=False)
+    audit_crt_ts = db.Column(db.DateTime(), nullable=False)
+    audit_upd_user = db.Column(db.String(80), nullable=True)
+    audit_upd_ts = db.Column(db.DateTime(), nullable=True)
+
+    def __init__(self, tag_name, audit_crt_user, audit_crt_ts):
+        self.tag_name = tag_name
+        self.audit_crt_user = audit_crt_user
+        self.audit_crt_ts = audit_crt_ts
+
+    def __repr__(self):
+        return '<tag: {}'.format(self.tag_name)
+
+
 # Classes pour définir les formulaires WTF
 # ----------------------------------------------------------------------------------------------------------------------
+
+# Formulaire pour confirmer la suppression d'une entitée
+class DelEntityForm(FlaskForm):
+    submit = SubmitField('Supprimer')
+
 
 # Formulaire web pour l'écran de login
 class LoginForm(FlaskForm):
@@ -100,9 +123,16 @@ class UpdTaskListForm(FlaskForm):
     submit = SubmitField('Modifier')
 
 
-# Formulaire pour confirmer la suppression d'une liste de tâches
-class DelTaskListForm(FlaskForm):
-    submit = SubmitField('Supprimer')
+# Formulaires pour ajouter une étiquette
+class AddTagForm(FlaskForm):
+    tag_name = StringField("Nom de l'étiquette", validators=[DataRequired(message='Le nom est requis.')])
+    submit = SubmitField('Ajouter')
+
+
+# Formulaire de la mise à jour d'une étiquette
+class UpdTagForm(FlaskForm):
+    tag_name = StringField("Nom de l'étiquette", validators=[DataRequired(message='Le nom est requis.')])
+    submit = SubmitField('Modifier')
 
 
 # The following functions are views
@@ -294,7 +324,7 @@ def del_tasklist(list_id):
     # TODO Refuser s'il y a des tâches dans la liste
     if not logged_in():
         return redirect(url_for('login'))
-    form = DelTaskListForm()
+    form = DelEntityForm()
     if form.validate_on_submit():
         app.logger.debug('Deleting a tasklist')
         if db_del_tasklist(list_id):
@@ -311,6 +341,92 @@ def del_tasklist(list_id):
             else:
                 flash("L'information n'a pas pu être retrouvée.")
                 return redirect(url_for('list_tasklists'))
+        except Exception as e:
+            flash("Quelque chose n'a pas fonctionné.")
+            app.logger.error('DB Error' + str(e))
+            abort(500)
+
+
+# Views for Tags
+# Ordre des vues: list, show, add, upd, del
+@app.route('/list_tags')
+def list_tags():
+    if not logged_in():
+        return redirect(url_for('login'))
+    try:
+        tags = Tag.query.order_by(Tag.tag_name).all()
+        return render_template('list_tags.html', tags=tags)
+    except Exception as e:
+        flash("Quelque chose n'a pas fonctionné.")
+        app.logger.error('DB Error' + str(e))
+        abort(500)
+
+
+@app.route('/add_tag', methods=['GET', 'POST'])
+def add_tag():
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_tag')
+    form = AddTagForm()
+    if form.validate_on_submit():
+        app.logger.debug('Inserting a new tag')
+        tag_name = request.form['tag_name']
+        if db_add_tag(tag_name):
+            flash('La nouvelle étiquette est ajoutée.')
+            return redirect(url_for('list_tags'))
+        else:
+            flash('Une erreur de base de données est survenue.')
+            abort(500)
+    return render_template('add_tag.html', form=form)
+
+
+@app.route('/upd_tag/<int:tag_id>', methods=['GET', 'POST'])
+def upd_tag(tag_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    form = UpdTagForm()
+    if form.validate_on_submit():
+        app.logger.debug('Updating a tag')
+        tag_name = form.tag_name.data
+        if db_upd_tag(tag_id, tag_name):
+            flash("L'étiquette a été modifiée.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+        return redirect(url_for('list_tags'))
+    else:
+        tag = Tag.query.get(tag_id)
+        if tag:
+            form.tag_name.data = tag.tag_name
+#            sections = Section.query.filter_by(checklist_id=checklist_id, deleted_ind='N') \
+#                .order_by(Section.section_seq).all()
+            return render_template("upd_tag.html", form=form, tag_id=tag_id, tag_name=tag.tag_name)
+        else:
+            flash("L'information n'a pas pu être retrouvée.")
+            return redirect(url_for('list_tags'))
+
+
+@app.route('/del_tag/<int:tag_id>', methods=['GET', 'POST'])
+def del_tag(tag_id):
+    # TODO Confirmer avant d'effacer une étiquette utilisée
+    if not logged_in():
+        return redirect(url_for('login'))
+    form = DelEntityForm()
+    if form.validate_on_submit():
+        app.logger.debug('Deleting a tag')
+        if db_del_tag(tag_id):
+            flash("L'étiquette a été effacée.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+        return redirect(url_for('list_tags'))
+    else:
+        try:
+            tag = Tag.query.get(tag_id)
+            # Ici ce serait une bonne place pour voir s'il y a des tâches
+            if tag:
+                return render_template('del_tag.html', form=form, tag_name=tag.tag_name)
+            else:
+                flash("L'information n'a pas pu être retrouvée.")
+                return redirect(url_for('list_tags'))
         except Exception as e:
             flash("Quelque chose n'a pas fonctionné.")
             app.logger.error('DB Error' + str(e))
@@ -455,6 +571,46 @@ def db_del_tasklist(list_id):
     try:
         tasklist = TaskList.query.get(list_id)
         db.session.delete(tasklist)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+# DB functions for Tag
+def db_add_tag(tag_name):
+    audit_crt_user = session.get('user_email', None)
+    audit_crt_ts = datetime.now()
+    tag = Tag(tag_name, audit_crt_user, audit_crt_ts)
+    try:
+        db.session.add(tag)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+def db_upd_tag(tag_id, tag_name):
+    audit_upd_user = session.get('user_email', None)
+    audit_upd_ts = datetime.now()
+    try:
+        tag = Tag.query.get(tag_id)
+        tag.tag_name = tag_name
+        tag.audit_upd_user = audit_upd_user
+        tag.audit_upd_ts = audit_upd_ts
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+def db_del_tag(tag_id):
+    try:
+        tag = Tag.query.get(tag_id)
+        db.session.delete(tag)
         db.session.commit()
     except Exception as e:
         app.logger.error('DB Error' + str(e))
