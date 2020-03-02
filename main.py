@@ -87,10 +87,22 @@ class RegisterForm(FlaskForm):
 
 
 # Formulaires pour ajouter une liste de tâches
-class AddTasklistForm(FlaskForm):
+class AddTaskListForm(FlaskForm):
     list_name = StringField('Nom de la liste', validators=[DataRequired(message='Le nom est requis.')])
     list_desc = TextAreaField('Description')
     submit = SubmitField('Ajouter')
+
+
+# Formulaire de la mise à jour d'une liste de tâches
+class UpdTaskListForm(FlaskForm):
+    list_name = StringField('Nom de la liste', validators=[DataRequired(message='Le nom est requis.')])
+    list_desc = TextAreaField('Description')
+    submit = SubmitField('Modifier')
+
+
+# Formulaire pour confirmer la suppression d'une liste de tâches
+class DelTaskListForm(FlaskForm):
+    submit = SubmitField('Supprimer')
 
 
 # The following functions are views
@@ -196,12 +208,33 @@ def act_user(user_id):
 
 
 # Views for Lists of Tasks
+# Ordre des vues: list, show, add, upd, del
 @app.route('/list_tasklists')
 def list_tasklists():
     if not logged_in():
         return redirect(url_for('login'))
-    tasklists = TaskList.query.order_by(TaskList.list_name).all()
-    return render_template('list_tasklists.html', tasklists=tasklists)
+    try:
+        tasklists = TaskList.query.order_by(TaskList.list_name).all()
+        return render_template('list_tasklists.html', tasklists=tasklists)
+    except Exception as e:
+        flash("Quelque chose n'a pas fonctionné.")
+        abort(500)
+
+
+@app.route('/show_tasklist/<int:list_id>')
+def show_tasklist(list_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    try:
+        tasklist = TaskList.query.get(list_id)
+        if tasklist:
+            return render_template("show_tasklist.html", tasklist=tasklist)
+        else:
+            flash("L'information n'a pas pu être retrouvée.")
+            return redirect(url_for('list_tasklists'))
+    except Exception as e:
+        flash("Quelque chose n'a pas fonctionné.")
+        abort(500)
 
 
 @app.route('/add_tasklist', methods=['GET', 'POST'])
@@ -209,7 +242,7 @@ def add_tasklist():
     if not logged_in():
         return redirect(url_for('login'))
     app.logger.debug('Entering add_tasklist')
-    form = AddTasklistForm()
+    form = AddTaskListForm()
     if form.validate_on_submit():
         app.logger.debug('Inserting a new tasklist')
         list_name = request.form['list_name']
@@ -221,6 +254,62 @@ def add_tasklist():
             flash('Une erreur de base de données est survenue.')
             abort(500)
     return render_template('add_tasklist.html', form=form)
+
+
+@app.route('/upd_tasklist/<int:list_id>', methods=['GET', 'POST'])
+def upd_tasklist(list_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    session['tasklist_id'] = list_id
+    form = UpdTaskListForm()
+    if form.validate_on_submit():
+        app.logger.debug('Updating a tasklist')
+        list_name = form.list_name.data
+        list_desc = form.list_desc.data
+        if db_upd_tasklist(list_id, list_name, list_desc):
+            flash("La liste a été modifiée.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+        return redirect(url_for('list_tasklists'))
+    else:
+        tasklist = TaskList.query.get(list_id)
+        if tasklist:
+            form.list_name.data = tasklist.list_name
+            form.list_desc.data = tasklist.list_desc
+#            sections = Section.query.filter_by(checklist_id=checklist_id, deleted_ind='N') \
+#                .order_by(Section.section_seq).all()
+            return render_template("upd_tasklist.html", form=form, list_id=list_id,
+                                   name=tasklist.list_name, desc=tasklist.list_desc)
+        else:
+            flash("L'information n'a pas pu être retrouvée.")
+            return redirect(url_for('list_tasklists'))
+
+
+@app.route('/del_tasklist/<int:list_id>', methods=['GET', 'POST'])
+def del_tasklist(list_id):
+    # TODO Refuser s'il y a des tâches dans la liste
+    if not logged_in():
+        return redirect(url_for('login'))
+    form = DelTaskListForm()
+    if form.validate_on_submit():
+        app.logger.debug('Deleting a tasklist')
+        if db_del_tasklist(list_id):
+            flash("La liste a été effacée.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+        return redirect(url_for('list_tasklists'))
+    else:
+        try:
+            tasklist = TaskList.query.get(list_id)
+            # Ici ce serait une bonne place pour voir s'il y a des tâches
+            if tasklist:
+                return render_template('del_tasklist.html', form=form, list_name=tasklist.list_name)
+            else:
+               flash("L'information n'a pas pu être retrouvée.")
+               return redirect(url_for('list_tasklists'))
+        except Exception as e:
+            flash("Quelque chose n'a pas fonctionné.")
+            abort(500)
 
 
 # Application functions
@@ -258,7 +347,6 @@ def db_add_user(first_name, last_name, user_email, user_pass):
 
 
 def db_act_user(user_id):
-    audit_upd_ts = datetime.now()
     try:
         user = AdminUser.query.get(user_id)
         user.activated = True
@@ -332,9 +420,36 @@ def db_validate_user(user_email, password):
 def db_add_tasklist(list_name, list_desc):
     audit_crt_user = session.get('user_email', None)
     audit_crt_ts = datetime.now()
-    tasklist = TaskList(list_name, list_desc)
+    tasklist = TaskList(list_name, list_desc, audit_crt_user, audit_crt_ts)
     try:
         db.session.add(tasklist)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+def db_upd_tasklist(list_id, list_name, list_desc):
+    audit_upd_user = session.get('user_email', None)
+    audit_upd_ts = datetime.now()
+    try:
+        tasklist = TaskList.query.get(list_id)
+        tasklist.list_name = list_name
+        tasklist.list_desc = list_desc
+        tasklist.audit_upd_user = audit_upd_user
+        tasklist.audit_upd_ts = audit_upd_ts
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+def db_del_tasklist(list_id):
+    try:
+        tasklist = TaskList.query.get(list_id)
+        db.session.delete(tasklist)
         db.session.commit()
     except Exception as e:
         app.logger.error('DB Error' + str(e))

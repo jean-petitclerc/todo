@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block page_content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Liste de tâches: {{ tasklist.list_name }}</h1>
+    </div>
+
+    <div class = "panel panel-primary">
+        <div class = "panel-heading">
+            <h2 class = "panel-title">Description</h2>
+        </div>
+
+        <div class = "panel-body">
+            {{ tasklist.list_desc }}
+        </div>
+    </div>
+
+    <p>Ajouté par: {{ tasklist.audit_crt_user }} le {{ tasklist.audit_crt_ts }}</p>
+    {% if tasklist.audit_upd_user %}
+        <p>Modifié par: {{ tasklist.audit_upd_user }} le {{ tasklist.audit_upd_ts }}</p>
+    {% endif %}
+    <p><a href="{{ url_for('list_tasklists') }}" class="btn btn-default">Retour à la liste</a></p>
+    <p>&nbsp</p>
+</div>
+{% endblock %}
