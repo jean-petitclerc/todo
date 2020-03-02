@@ -111,11 +111,13 @@ class DelTaskListForm(FlaskForm):
 # Custom error pages
 @app.errorhandler(404)
 def page_not_found(e):
+    app.logger.error('Page non trouvée. ' + str(e))
     return render_template('404.html'), 404
 
 
 @app.errorhandler(500)
 def internal_server_error(e):
+    app.logger.error('Erreur interne. ' + str(e))
     return render_template('500.html'), 500
 
 
@@ -218,6 +220,7 @@ def list_tasklists():
         return render_template('list_tasklists.html', tasklists=tasklists)
     except Exception as e:
         flash("Quelque chose n'a pas fonctionné.")
+        app.logger.error('DB Error' + str(e))
         abort(500)
 
 
@@ -234,6 +237,7 @@ def show_tasklist(list_id):
             return redirect(url_for('list_tasklists'))
     except Exception as e:
         flash("Quelque chose n'a pas fonctionné.")
+        app.logger.error('DB Error' + str(e))
         abort(500)
 
 
@@ -305,10 +309,11 @@ def del_tasklist(list_id):
             if tasklist:
                 return render_template('del_tasklist.html', form=form, list_name=tasklist.list_name)
             else:
-               flash("L'information n'a pas pu être retrouvée.")
-               return redirect(url_for('list_tasklists'))
+                flash("L'information n'a pas pu être retrouvée.")
+                return redirect(url_for('list_tasklists'))
         except Exception as e:
             flash("Quelque chose n'a pas fonctionné.")
+            app.logger.error('DB Error' + str(e))
             abort(500)
 
 
