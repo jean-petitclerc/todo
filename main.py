@@ -43,12 +43,13 @@ class AdminUser(db.Model):
 class TaskList(db.Model):
     __tablename__ = 'ttask_list'
     list_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
-    list_name = db.Column(db.String(50), nullable=False)
+    list_name = db.Column(db.String(50), nullable=False, unique=True)
     list_desc = db.Column(db.Text(), nullable=False, default='')
     audit_crt_user = db.Column(db.String(80), nullable=False)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
     audit_upd_user = db.Column(db.String(80), nullable=True)
     audit_upd_ts = db.Column(db.DateTime(), nullable=True)
+    tasks = db.relationship('Task', backref='ttask_list', lazy='dynamic')
 
     def __init__(self, list_name, list_desc, audit_crt_user, audit_crt_ts):
         self.list_name = list_name
@@ -60,14 +61,45 @@ class TaskList(db.Model):
         return '<task_list: {}'.format(self.list_name)
 
 
-class Tag(db.Model):
-    __tablename__ = 'ttag'
-    tag_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
-    tag_name = db.Column(db.String(50), nullable=False)
+class Task(db.Model):
+    __tablename__ = 'ttask'
+    task_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
+    list_id = db.Column(db.Integer(), db.ForeignKey('ttask_list.list_id'))
+    task_name = db.Column(db.String(50), nullable=False)
+    task_desc = db.Column(db.Text, nullable=False, default='')
+    task_sched_type = db.Column(db.String(1), nullable=False)  # O:one, d:daily, w:weekly, m:monthly, D,W,M every x
+    task_sched_start_dt = db.Column(db.Date, nullable=False)
+    task_sched_last_occrnc_dt = db.Column(db.Date, nullable=False)  # Last occurence date
+    task_sched_dow = db.Column(db.String(1), nullable=True)         # Day of week, 0..6
+    task_sched_dom = db.Column(db.SmallInt(), nullable=True)        # Day of month 0..31
+    task_sched_int = db.Column(db.Smallint(), nullable=True)        # Interval for every x D,W,M
     audit_crt_user = db.Column(db.String(80), nullable=False)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
     audit_upd_user = db.Column(db.String(80), nullable=True)
     audit_upd_ts = db.Column(db.DateTime(), nullable=True)
+    tags = db.relationship('TaskTag', backref='ttask', lazy='dynamic')
+
+    def __init__(self, list_id, task_name, task_desc, task_sched_type, audit_crt_user, audit_crt_ts):
+        self.list_id = list_id
+        self.task_name = task_name
+        self.task_desc = task_desc
+        self.task_sched_type = task_sched_type
+        self.audit_crt_user = audit_crt_user
+        self.audit_crt_ts = audit_crt_ts
+
+    def __repr__(self):
+        return '<task: {}'.format(self.task_name)
+
+
+class Tag(db.Model):
+    __tablename__ = 'ttag'
+    tag_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
+    tag_name = db.Column(db.String(50), nullable=False, unique=True)
+    audit_crt_user = db.Column(db.String(80), nullable=False)
+    audit_crt_ts = db.Column(db.DateTime(), nullable=False)
+    audit_upd_user = db.Column(db.String(80), nullable=True)
+    audit_upd_ts = db.Column(db.DateTime(), nullable=True)
+    tasks = db.relationship('TaskTag', backref='ttag', lazy='dynamic')
 
     def __init__(self, tag_name, audit_crt_user, audit_crt_ts):
         self.tag_name = tag_name
@@ -76,6 +108,19 @@ class Tag(db.Model):
 
     def __repr__(self):
         return '<tag: {}'.format(self.tag_name)
+
+
+class TaskTag(db.Model):
+    __tablename__ = 'ttask_tag'
+    task_id = db.Column(db.Integer(), db.ForeignKey('ttask.task_id'), primary_key=True)
+    tag_id = db.Column(db.Integer(), db.ForeignKey('ttag.tag_id'), primary_key=True)
+
+    def __init__(self, task_id, tag_id):
+        self.tag_id = tag_id
+        self.task_id = task_id
+
+    def __repr__(self):
+        return '<task_tag: {}.{}'.format(self.task_id, self.tag_id)
 
 
 # Classes pour définir les formulaires WTF
