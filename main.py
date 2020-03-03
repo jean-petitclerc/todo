@@ -71,8 +71,8 @@ class Task(db.Model):
     task_sched_start_dt = db.Column(db.Date, nullable=False)
     task_sched_last_occrnc_dt = db.Column(db.Date, nullable=False)  # Last occurence date
     task_sched_dow = db.Column(db.String(1), nullable=True)         # Day of week, 0..6
-    task_sched_dom = db.Column(db.SmallInteger(), nullable=True)        # Day of month 0..31
-    task_sched_int = db.Column(db.SmallInteger(), nullable=True)        # Interval for every x D,W,M
+    task_sched_dom = db.Column(db.SmallInteger(), nullable=True)    # Day of month 0..31
+    task_sched_int = db.Column(db.SmallInteger(), nullable=True)    # Interval for every x D,W,M
     audit_crt_user = db.Column(db.String(80), nullable=False)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
     audit_upd_user = db.Column(db.String(80), nullable=True)
@@ -423,12 +423,16 @@ def add_tag():
     if form.validate_on_submit():
         app.logger.debug('Inserting a new tag')
         tag_name = request.form['tag_name']
-        if db_add_tag(tag_name):
-            flash('La nouvelle étiquette est ajoutée.')
-            return redirect(url_for('list_tags'))
+        if db_tag_exists(tag_name):
+            flash("Ce nom d'étiquette existe déjà. Veuillez en choisir un autre.")
+            return render_template('add_tag.html', form=form)
         else:
-            flash('Une erreur de base de données est survenue.')
-            abort(500)
+            if db_add_tag(tag_name):
+                flash('La nouvelle étiquette est ajoutée.')
+                return redirect(url_for('list_tags'))
+            else:
+                flash('Une erreur de base de données est survenue.')
+                abort(500)
     return render_template('add_tag.html', form=form)
 
 
@@ -436,25 +440,25 @@ def add_tag():
 def upd_tag(tag_id):
     if not logged_in():
         return redirect(url_for('login'))
+    tag = Tag.query.get(tag_id)
+    if tag is None:
+        flash("L'information n'a pas pu être retrouvée.")
+        return redirect(url_for('list_tags'))
     form = UpdTagForm()
     if form.validate_on_submit():
         app.logger.debug('Updating a tag')
         tag_name = form.tag_name.data
+        if db_tag_exists(tag_name):
+            flash("Ce nom d'étiquette existe déjà. Veuillez en choisir un autre.")
+            return render_template("upd_tag.html", form=form, tag_id=tag_id, tag_name=tag.tag_name)
         if db_upd_tag(tag_id, tag_name):
             flash("L'étiquette a été modifiée.")
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('list_tags'))
     else:
-        tag = Tag.query.get(tag_id)
-        if tag:
-            form.tag_name.data = tag.tag_name
-#            sections = Section.query.filter_by(checklist_id=checklist_id, deleted_ind='N') \
-#                .order_by(Section.section_seq).all()
-            return render_template("upd_tag.html", form=form, tag_id=tag_id, tag_name=tag.tag_name)
-        else:
-            flash("L'information n'a pas pu être retrouvée.")
-            return redirect(url_for('list_tags'))
+        form.tag_name.data = tag.tag_name
+        return render_template("upd_tag.html", form=form, tag_id=tag_id, tag_name=tag.tag_name)
 
 
 @app.route('/del_tag/<int:tag_id>', methods=['GET', 'POST'])
@@ -653,6 +657,19 @@ def db_add_tag(tag_name):
         app.logger.error('DB Error' + str(e))
         return False
     return True
+
+
+def db_tag_exists(tag_name):
+    app.logger.debug('Entering tag_exists with: ' + tag_name)
+    try:
+        tag = Tag.query.filter_by(tag_name=tag_name).first()
+        if tag is None:
+            return False
+        else:
+            return True
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
 
 
 def db_upd_tag(tag_id, tag_name):
