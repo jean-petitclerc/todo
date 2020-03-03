@@ -71,8 +71,8 @@ class Task(db.Model):
     task_sched_start_dt = db.Column(db.Date, nullable=False)
     task_sched_last_occrnc_dt = db.Column(db.Date, nullable=False)  # Last occurence date
     task_sched_dow = db.Column(db.String(1), nullable=True)         # Day of week, 0..6
-    task_sched_dom = db.Column(db.SmallInt(), nullable=True)        # Day of month 0..31
-    task_sched_int = db.Column(db.Smallint(), nullable=True)        # Interval for every x D,W,M
+    task_sched_dom = db.Column(db.SmallInteger(), nullable=True)        # Day of month 0..31
+    task_sched_int = db.Column(db.SmallInteger(), nullable=True)        # Interval for every x D,W,M
     audit_crt_user = db.Column(db.String(80), nullable=False)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
     audit_upd_user = db.Column(db.String(80), nullable=True)
@@ -326,12 +326,16 @@ def add_tasklist():
         app.logger.debug('Inserting a new tasklist')
         list_name = request.form['list_name']
         list_desc = request.form['list_desc']
-        if db_add_tasklist(list_name, list_desc):
-            flash('La nouvelle liste est ajoutée.')
-            return redirect(url_for('list_tasklists'))
+        if db_tasklist_exists(list_name):
+            flash('Ce nom de liste existe déjà. Veuillez en choisir un autre.')
+            return render_template('add_tasklist.html', form=form)
         else:
-            flash('Une erreur de base de données est survenue.')
-            abort(500)
+            if db_add_tasklist(list_name, list_desc):
+                flash('La nouvelle liste est ajoutée.')
+                return redirect(url_for('list_tasklists'))
+            else:
+                flash('Une erreur de base de données est survenue.')
+                abort(500)
     return render_template('add_tasklist.html', form=form)
 
 
@@ -340,28 +344,31 @@ def upd_tasklist(list_id):
     if not logged_in():
         return redirect(url_for('login'))
     session['tasklist_id'] = list_id
+    tasklist = TaskList.query.get(list_id)
+    if tasklist is None:
+        flash("L'information n'a pas pu être retrouvée.")
+        return redirect(url_for('list_tasklists'))
     form = UpdTaskListForm()
     if form.validate_on_submit():
         app.logger.debug('Updating a tasklist')
         list_name = form.list_name.data
         list_desc = form.list_desc.data
+        if db_tasklist_exists(list_name):
+            flash('Ce nom de liste existe déjà. Veuillez en choisir un autre.')
+            return render_template("upd_tasklist.html", form=form, list_id=list_id,
+                                   name=tasklist.list_name, desc=tasklist.list_desc)
         if db_upd_tasklist(list_id, list_name, list_desc):
             flash("La liste a été modifiée.")
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('list_tasklists'))
     else:
-        tasklist = TaskList.query.get(list_id)
-        if tasklist:
-            form.list_name.data = tasklist.list_name
-            form.list_desc.data = tasklist.list_desc
+        form.list_name.data = tasklist.list_name
+        form.list_desc.data = tasklist.list_desc
 #            sections = Section.query.filter_by(checklist_id=checklist_id, deleted_ind='N') \
 #                .order_by(Section.section_seq).all()
-            return render_template("upd_tasklist.html", form=form, list_id=list_id,
-                                   name=tasklist.list_name, desc=tasklist.list_desc)
-        else:
-            flash("L'information n'a pas pu être retrouvée.")
-            return redirect(url_for('list_tasklists'))
+        return render_template("upd_tasklist.html", form=form, list_id=list_id,
+                               name=tasklist.list_name, desc=tasklist.list_desc)
 
 
 @app.route('/del_tasklist/<int:list_id>', methods=['GET', 'POST'])
@@ -528,10 +535,8 @@ def db_user_exists(user_email):
     try:
         user = AdminUser.query.filter_by(user_email=user_email).first()
         if user is None:
-            app.logger.debug('user_exists returns False')
             return False
         else:
-            app.logger.debug('user_exists returns True' + user_email)
             return True
     except Exception as e:
         app.logger.error('DB Error' + str(e))
@@ -594,6 +599,19 @@ def db_add_tasklist(list_name, list_desc):
         app.logger.error('DB Error' + str(e))
         return False
     return True
+
+
+def db_tasklist_exists(list_name):
+    app.logger.debug('Entering tasklist_exists with: ' + list_name)
+    try:
+        tasklist = TaskList.query.filter_by(list_name=list_name).first()
+        if tasklist is None:
+            return False
+        else:
+            return True
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
 
 
 def db_upd_tasklist(list_id, list_name, list_desc):
