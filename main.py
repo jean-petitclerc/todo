@@ -1,9 +1,30 @@
-from flask import Flask, session, redirect, url_for, request, render_template, flash, g, abort  # escape
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import (Flask,
+                   session,
+                   redirect,
+                   url_for,
+                   request,
+                   render_template,
+                   flash,
+                   g,
+                   abort,
+                   escape)
+from werkzeug.security import (generate_password_hash,
+                               check_password_hash)
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, TextAreaField, BooleanField, SubmitField, IntegerField, SelectField
-from wtforms.validators import DataRequired, Email, EqualTo, NumberRange  # Length, NumberRange
+from wtforms import (StringField,
+                     PasswordField,
+                     TextAreaField,
+                     BooleanField,
+                     SubmitField,
+                     IntegerField,
+                     SelectField)
+from wtforms.validators import (DataRequired,
+                                Email,
+                                EqualTo,
+                                NumberRange)  # Length, NumberRange
+from wtforms.fields import (DateField,
+                            RadioField)
 from flask_script import Manager
 from flask_sqlalchemy import SQLAlchemy
 from config import DevConfig
@@ -19,8 +40,8 @@ db = SQLAlchemy(app)
 
 # Database Model
 # ----------------------------------------------------------------------------------------------------------------------
-class AdminUser(db.Model):
-    __tablename__ = 'tadmin_user'
+class AppUser(db.Model):
+    __tablename__ = 'tapp_user'
     user_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
     first_name = db.Column(db.String(30), nullable=False)
     last_name = db.Column(db.String(30), nullable=False)
@@ -28,6 +49,7 @@ class AdminUser(db.Model):
     user_pass = db.Column(db.String(100), nullable=False)
     activated = db.Column(db.Boolean(), nullable=False, default=False)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
+    tasks = db.relationship('Assignment', backref='tapp_user', lazy='dynamic')
 
     def __init__(self, first_name, last_name, user_email, user_pass, audit_crt_ts):
         self.first_name = first_name
@@ -67,28 +89,89 @@ class Task(db.Model):
     list_id = db.Column(db.Integer(), db.ForeignKey('ttask_list.list_id'))
     task_name = db.Column(db.String(50), nullable=False)
     task_desc = db.Column(db.Text, nullable=False, default='')
-    task_sched_type = db.Column(db.String(1), nullable=False)  # O:one, d:daily, w:weekly, m:monthly, D,W,M every x
-    task_sched_start_dt = db.Column(db.Date, nullable=False)
-    task_sched_last_occrnc_dt = db.Column(db.Date, nullable=False)  # Last occurence date
-    task_sched_dow = db.Column(db.String(1), nullable=True)         # Day of week, 0..6
-    task_sched_dom = db.Column(db.SmallInteger(), nullable=True)    # Day of month 0..31
-    task_sched_int = db.Column(db.SmallInteger(), nullable=True)    # Interval for every x D,W,M
     audit_crt_user = db.Column(db.String(80), nullable=False)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
     audit_upd_user = db.Column(db.String(80), nullable=True)
     audit_upd_ts = db.Column(db.DateTime(), nullable=True)
     tags = db.relationship('TaskTag', backref='ttask', lazy='dynamic')
+    schedules = db.relationship('TaskSched', backref='ttask', lazy='dynamic')
+    assignees = db.relationship('Assignment', backref='ttask', lazy='dynamic')
+    occurences = db.relationship('TaskOccurence', backref='ttask', lazy='dynamic')
 
-    def __init__(self, list_id, task_name, task_desc, task_sched_type, audit_crt_user, audit_crt_ts):
+    def __init__(self, list_id, task_name, task_desc, audit_crt_user, audit_crt_ts):
         self.list_id = list_id
         self.task_name = task_name
         self.task_desc = task_desc
-        self.task_sched_type = task_sched_type
         self.audit_crt_user = audit_crt_user
         self.audit_crt_ts = audit_crt_ts
 
     def __repr__(self):
         return '<task: {}'.format(self.task_name)
+
+
+class TaskSched(db.Model):
+    __tablename__ = 'ttask_sched'
+    sched_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
+    task_id = db.Column(db.Integer(), db.ForeignKey('ttask.task_id'))
+    sched_type = db.Column(db.String(1), nullable=False)       # O:one, d:daily, w:weekly, m:monthly, D,W,M every x
+    sched_start_dt = db.Column(db.Date, nullable=False)
+    sched_end_dt = db.Column(db.Date, nullable=True)
+    sched_last_occ_dt = db.Column(db.Date, nullable=False)     # Last occurence date
+    sched_dow = db.Column(db.String(1), nullable=True)         # Day of week, 0..6
+    sched_dom = db.Column(db.SmallInteger(), nullable=True)    # Day of month 0..31
+    sched_int = db.Column(db.SmallInteger(), nullable=True)    # Interval for every x D,W,M
+    audit_crt_user = db.Column(db.String(80), nullable=False)
+    audit_crt_ts = db.Column(db.DateTime(), nullable=False)
+    audit_upd_user = db.Column(db.String(80), nullable=True)
+    audit_upd_ts = db.Column(db.DateTime(), nullable=True)
+    occurences = db.relationship('TaskOccurence', backref='ttask_sched', lazy='dynamic')
+
+    def __init__(self, task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
+                 sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
+        self.task_id = task_id
+        self.sched_type = sched_type
+        self.sched_start_dt = sched_start_dt
+        self.sched_end_dt = sched_end_dt
+        self.sched_last_occ_dt = sched_last_occ_dt
+        self.sched_dow = sched_dow
+        self.sched_dom = sched_dom
+        self.sched_int = sched_int
+        self.audit_crt_user= audit_crt_user
+        self.audit_crt_ts = audit_crt_ts
+
+    def __repr__(self):
+        return '<task_sched: {}'.format(self.sched_id)
+
+
+class TaskOccurence(db.Model):
+    __tablename__ = 'ttask_occur'
+    occur_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
+    task_id = db.Column(db.Integer(), db.ForeignKey('ttask.task_id'))
+    sched_id = db.Column(db.Integer(), db.ForeignKey('ttask_sched.sched_id'))
+    sched_dt = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(1), nullable=False, default='T')  # T:Todo, D:Done, C:Cancelled
+    audit_upd_user = db.Column(db.String(80), nullable=True)
+    audit_upd_ts = db.Column(db.DateTime(), nullable=True)
+
+    def __init__(self):
+        return
+
+    def __repr__(self):
+        return '<task_occurence: {}:{}'.format(self.task_id, self.sched_id)
+
+
+class Assignment(db.Model):
+    __tablename__ = 'tassignment'
+    asgn_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('tapp_user.user_id'))
+    task_id = db.Column(db.Integer, db.ForeignKey('ttask.task_id'))
+
+    def __init__(self, checklist_id, var_id):
+        self.checklist_id = checklist_id
+        self.var_id = var_id
+
+    def __repr__(self):
+        return '<assignment: {}:{}>'.format(self.task_id, self.user_id)
 
 
 class Tag(db.Model):
@@ -166,6 +249,15 @@ class UpdTaskListForm(FlaskForm):
     list_name = StringField('Nom de la liste', validators=[DataRequired(message='Le nom est requis.')])
     list_desc = TextAreaField('Description')
     submit = SubmitField('Modifier')
+
+
+# Formulaires pour ajouter une tâches
+class AddTaskForm(FlaskForm):
+    task_name = StringField('Nom de la tâche', validators=[DataRequired(message='Le nom est requis.')])
+    task_desc = TextAreaField('Description')
+    task_sched_type = RadioField('O', choices=[('O', "Une fois"), ('d', "Quotidien"), ('w', "Hebdomadaire"),
+                                               ('m', "Mensuel")])  # O:one, d:daily, w:weekly, m:monthly, D,W,M every x
+    submit = SubmitField('Ajouter')
 
 
 # Formulaires pour ajouter une étiquette
@@ -266,8 +358,8 @@ def list_users():
     if not logged_in():
         return redirect(url_for('login'))
     try:
-        admin_users = AdminUser.query.order_by(AdminUser.first_name).all()
-        return render_template('list_users.html', admin_users=admin_users)
+        app_users = AppUser.query.order_by(AppUser.first_name).all()
+        return render_template('list_users.html', app_users=app_users)
     except Exception as e:
         app.logger.error('DB Error' + str(e))
         return redirect(url_for('index'))
@@ -399,6 +491,31 @@ def del_tasklist(list_id):
             abort(500)
 
 
+# Views for Tasks
+# Ordre des vues: list, show, add, upd, del
+@app.route('/add_task', methods=['GET', 'POST'])
+def add_task():
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_task')
+    form = AddTaskForm()
+    if form.validate_on_submit():
+        app.logger.debug('Inserting a new tasklist')
+        task_name = request.form['task_name']
+        task_desc = request.form['task_desc']
+        if db_task_exists(task_name):
+            flash('Ce nom de liste existe déjà. Veuillez en choisir un autre.')
+            return render_template('add_task.html', form=form)
+        else:
+            if db_add_tasklist():
+                flash('La nouvelle liste est ajoutée.')
+                return redirect(url_for('list_tasks'))
+            else:
+                flash('Une erreur de base de données est survenue.')
+                abort(500)
+    return render_template('add_task.html', form=form)
+
+
 # Views for Tags
 # Ordre des vues: list, show, add, upd, del
 @app.route('/list_tags')
@@ -508,11 +625,11 @@ def logged_in():
 # Database functions
 # ----------------------------------------------------------------------------------------------------------------------
 
-# Database functions for AdminUser
+# Database functions for AppUser
 def db_add_user(first_name, last_name, user_email, user_pass):
     audit_crt_ts = datetime.now()
     try:
-        user = AdminUser(first_name, last_name, user_email, user_pass, audit_crt_ts)
+        user = AppUser(first_name, last_name, user_email, user_pass, audit_crt_ts)
         if user_email == "jean.petitclerc@groupepp.com":
             user.activated = True
         db.session.add(user)
@@ -525,7 +642,7 @@ def db_add_user(first_name, last_name, user_email, user_pass):
 
 def db_act_user(user_id):
     try:
-        user = AdminUser.query.get(user_id)
+        user = AppUser.query.get(user_id)
         user.activated = True
         db.session.commit()
         return True
@@ -537,7 +654,7 @@ def db_act_user(user_id):
 def db_user_exists(user_email):
     app.logger.debug('Entering user_exists with: ' + user_email)
     try:
-        user = AdminUser.query.filter_by(user_email=user_email).first()
+        user = AppUser.query.filter_by(user_email=user_email).first()
         if user is None:
             return False
         else:
@@ -549,7 +666,7 @@ def db_user_exists(user_email):
 
 def db_change_password(user_email, new_password):
     try:
-        user = AdminUser.query.filter_by(user_email=user_email).first()
+        user = AppUser.query.filter_by(user_email=user_email).first()
         if user is None:
             flash("Mot de passe inchangé. L'usager n'a pas été retrouvé.")
             return False
@@ -564,10 +681,10 @@ def db_change_password(user_email, new_password):
         return False
 
 
-# Validate if a user is defined in tadmin_user with the proper password.
+# Validate if a user is defined in tapp_user with the proper password.
 def db_validate_user(user_email, password):
     try:
-        user = AdminUser.query.filter_by(user_email=user_email).first()
+        user = AppUser.query.filter_by(user_email=user_email).first()
         if user is None:
             flash("L'usager n'existe pas.")
             return False
@@ -616,6 +733,15 @@ def db_tasklist_exists(list_name):
     except Exception as e:
         app.logger.error('DB Error' + str(e))
         return False
+
+
+# DB functions for Task
+def db_add_tasklist():
+    return True
+
+
+def db_task_exists(task_name):
+    return False
 
 
 def db_upd_tasklist(list_id, list_name, list_desc):
