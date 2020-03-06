@@ -87,7 +87,7 @@ class Task(db.Model):
     __tablename__ = 'ttask'
     task_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
     list_id = db.Column(db.Integer(), db.ForeignKey('ttask_list.list_id'))
-    task_name = db.Column(db.String(50), nullable=False)
+    task_name = db.Column(db.String(50), nullable=False, unique=True)
     task_desc = db.Column(db.Text, nullable=False, default='')
     audit_crt_user = db.Column(db.String(80), nullable=False)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
@@ -161,14 +161,15 @@ class TaskOccurence(db.Model):
 
 
 class Assignment(db.Model):
+    # Unique on user_id, task_id
     __tablename__ = 'tassignment'
     asgn_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('tapp_user.user_id'))
     task_id = db.Column(db.Integer, db.ForeignKey('ttask.task_id'))
 
-    def __init__(self, checklist_id, var_id):
-        self.checklist_id = checklist_id
-        self.var_id = var_id
+    def __init__(self, user_id, task_id):
+        self.user_id = user_id
+        self.task_id = task_id
 
     def __repr__(self):
         return '<assignment: {}:{}>'.format(self.task_id, self.user_id)
