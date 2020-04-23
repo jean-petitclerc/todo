@@ -30,16 +30,8 @@
         <div class="form-group ">
             {{ render_field(form.task_desc, class="form-control") }}
         </div>
-        <div class="form-group">
-            {% for bouton in form.task_sched_type %}
-                <tr>
-                    <td>{{ bouton }}</td>
-                    <td>{{ bouton.label }}</td>
-                </tr>
-            {% endfor %}
-        </div>
         <input class="btn btn-default" id="submit" name="submit" type="submit" value="Ajouter">
-        <a href="{{ url_for('list_tasklists') }}" class="btn btn-default">Annuler</a>
+        <a href="{{ url_for('upd_tasklist', list_id=list_id) }}" class="btn btn-default">Annuler</a>
     </form>
 </div>
 {% endblock %}

@@ -5,7 +5,7 @@
         <h1>Liste des Utilisateurs</h1>
     </div>
     <p>
-        {% if admin_users %}
+        {% if app_users %}
         <table class="table table-bordered">
             <thead>
                 <tr>
@@ -17,12 +17,12 @@
                 </tr>
             </thead>
             <tbody>
-                {% for user in admin_users %}
+                {% for user in app_users %}
                     <tr>
                         <td>{{ user['first_name'] }}</td>
                         <td>{{ user['last_name'] }}</td>
                         <td>{{ user['user_email'] }}</td>
-                        {% if user.activated %}
+                        {% if user.activated_ts %}
                             <td class="text-center">Oui</td>
                             <td class="text-center">N/A</td>
                         {% else %}

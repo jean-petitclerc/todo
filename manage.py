@@ -1,5 +1,5 @@
-from main import app, db, AdminUser
+from main import app, db
 
 @app.shell_context_processor
 def make_shell_context():
-  return dict(app=app, db=db, AdminUser=AdminUser)
+  return dict(app=app, db=db)

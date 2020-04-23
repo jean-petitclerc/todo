@@ -29,6 +29,7 @@ from flask_script import Manager
 from flask_sqlalchemy import SQLAlchemy
 from config import DevConfig
 from datetime import datetime
+from sqlalchemy import UniqueConstraint
 
 
 app = Flask(__name__)
@@ -47,8 +48,9 @@ class AppUser(db.Model):
     last_name = db.Column(db.String(30), nullable=False)
     user_email = db.Column(db.String(80), nullable=False, unique=True)
     user_pass = db.Column(db.String(100), nullable=False)
-    activated = db.Column(db.Boolean(), nullable=False, default=False)
+    activated_ts = db.Column(db.DateTime(), nullable=True)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
+    audit_upd_ts = db.Column(db.DateTime(), nullable=True)
     tasks = db.relationship('Assignment', backref='tapp_user', lazy='dynamic')
 
     def __init__(self, first_name, last_name, user_email, user_pass, audit_crt_ts):
@@ -59,7 +61,10 @@ class AppUser(db.Model):
         self.audit_crt_ts = audit_crt_ts
 
     def __repr__(self):
-        return '<user: {}>'.format(self.user_email)
+        return '<user: {} {}>'.format(self.first_name, self.last_name)
+
+    def user_name(self):
+        return '{} {}'.format(self.first_name, self.last_name)
 
 
 class TaskList(db.Model):
@@ -67,9 +72,9 @@ class TaskList(db.Model):
     list_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
     list_name = db.Column(db.String(50), nullable=False, unique=True)
     list_desc = db.Column(db.Text(), nullable=False, default='')
-    audit_crt_user = db.Column(db.String(80), nullable=False)
+    audit_crt_user = db.Column(db.Integer(), nullable=False)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
-    audit_upd_user = db.Column(db.String(80), nullable=True)
+    audit_upd_user = db.Column(db.Integer(), nullable=True)
     audit_upd_ts = db.Column(db.DateTime(), nullable=True)
     tasks = db.relationship('Task', backref='ttask_list', lazy='dynamic')
 
@@ -89,14 +94,14 @@ class Task(db.Model):
     list_id = db.Column(db.Integer(), db.ForeignKey('ttask_list.list_id'))
     task_name = db.Column(db.String(50), nullable=False, unique=True)
     task_desc = db.Column(db.Text, nullable=False, default='')
-    audit_crt_user = db.Column(db.String(80), nullable=False)
+    audit_crt_user = db.Column(db.Integer(), nullable=False)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
-    audit_upd_user = db.Column(db.String(80), nullable=True)
+    audit_upd_user = db.Column(db.Integer(), nullable=True)
     audit_upd_ts = db.Column(db.DateTime(), nullable=True)
-    tags = db.relationship('TaskTag', backref='ttask', lazy='dynamic')
-    schedules = db.relationship('TaskSched', backref='ttask', lazy='dynamic')
-    assignees = db.relationship('Assignment', backref='ttask', lazy='dynamic')
-    occurences = db.relationship('TaskOccurence', backref='ttask', lazy='dynamic')
+    tags = db.relationship('TaskTag', cascade="all,delete", backref='ttask', lazy='dynamic')
+    schedules = db.relationship('TaskSched', cascade="all,delete", backref='ttask', lazy='dynamic')
+    assignees = db.relationship('Assignment', cascade="all,delete", backref='ttask', lazy='dynamic')
+    occurences = db.relationship('TaskOccurence', cascade="all,delete", backref='ttask', lazy='dynamic')
 
     def __init__(self, list_id, task_name, task_desc, audit_crt_user, audit_crt_ts):
         self.list_id = list_id
@@ -120,11 +125,11 @@ class TaskSched(db.Model):
     sched_dow = db.Column(db.String(1), nullable=True)         # Day of week, 0..6
     sched_dom = db.Column(db.SmallInteger(), nullable=True)    # Day of month 0..31
     sched_int = db.Column(db.SmallInteger(), nullable=True)    # Interval for every x D,W,M
-    audit_crt_user = db.Column(db.String(80), nullable=False)
+    audit_crt_user = db.Column(db.Integer(), nullable=False)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
-    audit_upd_user = db.Column(db.String(80), nullable=True)
+    audit_upd_user = db.Column(db.Integer(), nullable=True)
     audit_upd_ts = db.Column(db.DateTime(), nullable=True)
-    occurences = db.relationship('TaskOccurence', backref='ttask_sched', lazy='dynamic')
+    occurences = db.relationship('TaskOccurence', cascade="all,delete", backref='ttask_sched', lazy='dynamic')
 
     def __init__(self, task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
                  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
@@ -150,7 +155,7 @@ class TaskOccurence(db.Model):
     sched_id = db.Column(db.Integer(), db.ForeignKey('ttask_sched.sched_id'))
     sched_dt = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(1), nullable=False, default='T')  # T:Todo, D:Done, C:Cancelled
-    audit_upd_user = db.Column(db.String(80), nullable=True)
+    audit_upd_user = db.Column(db.Integer(), nullable=True)
     audit_upd_ts = db.Column(db.DateTime(), nullable=True)
 
     def __init__(self):
@@ -161,15 +166,18 @@ class TaskOccurence(db.Model):
 
 
 class Assignment(db.Model):
-    # Unique on user_id, task_id
+    # TODO: Unique on user_id, task_id
     __tablename__ = 'tassignment'
+    # __table_args__ = (
+    #     db.UniqueConstraint('user_id', 'task_id', name='x1')
+    #     )
     asgn_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('tapp_user.user_id'))
     task_id = db.Column(db.Integer, db.ForeignKey('ttask.task_id'))
 
-    def __init__(self, user_id, task_id):
-        self.user_id = user_id
+    def __init__(self, task_id, user_id):
         self.task_id = task_id
+        self.user_id = user_id
 
     def __repr__(self):
         return '<assignment: {}:{}>'.format(self.task_id, self.user_id)
@@ -179,9 +187,9 @@ class Tag(db.Model):
     __tablename__ = 'ttag'
     tag_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
     tag_name = db.Column(db.String(50), nullable=False, unique=True)
-    audit_crt_user = db.Column(db.String(80), nullable=False)
+    audit_crt_user = db.Column(db.Integer(), nullable=False)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
-    audit_upd_user = db.Column(db.String(80), nullable=True)
+    audit_upd_user = db.Column(db.Integer(), nullable=True)
     audit_upd_ts = db.Column(db.DateTime(), nullable=True)
     tasks = db.relationship('TaskTag', backref='ttag', lazy='dynamic')
 
@@ -256,9 +264,16 @@ class UpdTaskListForm(FlaskForm):
 class AddTaskForm(FlaskForm):
     task_name = StringField('Nom de la tâche', validators=[DataRequired(message='Le nom est requis.')])
     task_desc = TextAreaField('Description')
-    task_sched_type = RadioField('O', choices=[('O', "Une fois"), ('d', "Quotidien"), ('w', "Hebdomadaire"),
-                                               ('m', "Mensuel")])  # O:one, d:daily, w:weekly, m:monthly, D,W,M every x
+#    task_sched_type = RadioField('O', choices=[('O', "Une fois"), ('d', "Quotidien"), ('w', "Hebdomadaire"),
+#                                               ('m', "Mensuel")])  # O:one, d:daily, w:weekly, m:monthly, D,W,M every x
     submit = SubmitField('Ajouter')
+
+
+# Formulaire de la mise à jour d'une tâche
+class UpdTaskForm(FlaskForm):
+    task_name = StringField('Nom de la tâche', validators=[DataRequired(message='Le nom est requis.')])
+    task_desc = TextAreaField('Description')
+    submit = SubmitField('Modifier')
 
 
 # Formulaires pour ajouter une étiquette
@@ -385,6 +400,9 @@ def list_tasklists():
         return redirect(url_for('login'))
     try:
         tasklists = TaskList.query.order_by(TaskList.list_name).all()
+        for tasklist in tasklists:
+            u = db_user_by_id(tasklist.audit_crt_user)
+            tasklist.audit_crt_user_name = u.user_name()
         return render_template('list_tasklists.html', tasklists=tasklists)
     except Exception as e:
         flash("Quelque chose n'a pas fonctionné.")
@@ -399,7 +417,14 @@ def show_tasklist(list_id):
     try:
         tasklist = TaskList.query.get(list_id)
         if tasklist:
-            return render_template("show_tasklist.html", tasklist=tasklist)
+            u = db_user_by_id(tasklist.audit_crt_user)
+            tasklist.audit_crt_user_name = u.user_name()
+            if tasklist.audit_upd_user:
+                u = db_user_by_id(tasklist.audit_upd_user)
+                tasklist.audit_upd_user_name = u.user_name()
+            tasks = Task.query.filter_by(list_id=list_id) \
+                .order_by(Task.task_name).all()
+            return render_template("show_tasklist.html", tasklist=tasklist, tasks=tasks)
         else:
             flash("L'information n'a pas pu être retrouvée.")
             return redirect(url_for('list_tasklists'))
@@ -436,20 +461,23 @@ def add_tasklist():
 def upd_tasklist(list_id):
     if not logged_in():
         return redirect(url_for('login'))
-    session['tasklist_id'] = list_id
-    tasklist = TaskList.query.get(list_id)
+    session['list_id'] = list_id
+    tasklist = db_tasklist_by_id(list_id)
     if tasklist is None:
         flash("L'information n'a pas pu être retrouvée.")
         return redirect(url_for('list_tasklists'))
+    else:
+        tasks = Task.query.filter_by(list_id=list_id) \
+            .order_by(Task.task_name).all()
     form = UpdTaskListForm()
     if form.validate_on_submit():
         app.logger.debug('Updating a tasklist')
+        save_list_name = tasklist.list_name
         list_name = form.list_name.data
         list_desc = form.list_desc.data
-        if db_tasklist_exists(list_name):
+        if (list_name != save_list_name) and db_tasklist_exists(list_name):
             flash('Ce nom de liste existe déjà. Veuillez en choisir un autre.')
-            return render_template("upd_tasklist.html", form=form, list_id=list_id,
-                                   name=tasklist.list_name, desc=tasklist.list_desc)
+            return render_template("upd_tasklist.html", form=form, list_id=list_id, tasks=tasks)
         if db_upd_tasklist(list_id, list_name, list_desc):
             flash("La liste a été modifiée.")
         else:
@@ -458,15 +486,11 @@ def upd_tasklist(list_id):
     else:
         form.list_name.data = tasklist.list_name
         form.list_desc.data = tasklist.list_desc
-#            sections = Section.query.filter_by(checklist_id=checklist_id, deleted_ind='N') \
-#                .order_by(Section.section_seq).all()
-        return render_template("upd_tasklist.html", form=form, list_id=list_id,
-                               name=tasklist.list_name, desc=tasklist.list_desc)
+        return render_template("upd_tasklist.html", form=form, list_id=list_id, tasks=tasks)
 
 
 @app.route('/del_tasklist/<int:list_id>', methods=['GET', 'POST'])
 def del_tasklist(list_id):
-    # TODO Refuser s'il y a des tâches dans la liste
     if not logged_in():
         return redirect(url_for('login'))
     form = DelEntityForm()
@@ -478,18 +502,19 @@ def del_tasklist(list_id):
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('list_tasklists'))
     else:
-        try:
-            tasklist = TaskList.query.get(list_id)
-            # Ici ce serait une bonne place pour voir s'il y a des tâches
-            if tasklist:
-                return render_template('del_tasklist.html', form=form, list_name=tasklist.list_name)
-            else:
-                flash("L'information n'a pas pu être retrouvée.")
-                return redirect(url_for('list_tasklists'))
-        except Exception as e:
-            flash("Quelque chose n'a pas fonctionné.")
-            app.logger.error('DB Error' + str(e))
-            abort(500)
+        tasklist = db_tasklist_by_id(list_id)
+        tasks = db_tasklist_has_tasks(list_id)
+        if tasks is None:
+            flash("L'application n'a pas pu déterminer s'il y avait des tâches dans la liste.")
+            return redirect(url_for('list_tasklists'))
+        if tasks > 0:
+            flash("La liste a des tâches. Elle ne peut pas être effacée.")
+            return redirect(url_for('list_tasklists'))
+        if tasklist:
+            return render_template('del_tasklist.html', form=form, list_name=tasklist.list_name)
+        else:
+            flash("L'information n'a pas pu être retrouvée.")
+            return redirect(url_for('list_tasklists'))
 
 
 # Views for Tasks
@@ -499,23 +524,132 @@ def add_task():
     if not logged_in():
         return redirect(url_for('login'))
     app.logger.debug('Entering add_task')
+    list_id = session['list_id']
     form = AddTaskForm()
     if form.validate_on_submit():
-        app.logger.debug('Inserting a new tasklist')
+        app.logger.debug('Inserting a new task')
         task_name = request.form['task_name']
         task_desc = request.form['task_desc']
         if db_task_exists(task_name):
             flash('Ce nom de liste existe déjà. Veuillez en choisir un autre.')
-            return render_template('add_task.html', form=form)
+            return render_template('add_task.html', form=form, list_id=list_id)
         else:
-            if db_add_tasklist():
-                flash('La nouvelle liste est ajoutée.')
-                return redirect(url_for('list_tasks'))
+            if db_add_task(list_id, task_name, task_desc):
+                flash('La nouvelle tâche est ajoutée.')
+                return redirect(url_for('upd_tasklist', list_id=list_id))
             else:
                 flash('Une erreur de base de données est survenue.')
                 abort(500)
-    return render_template('add_task.html', form=form)
+    return render_template('add_task.html', form=form, list_id=list_id)
 
+
+@app.route('/upd_task/<int:task_id>', methods=['GET', 'POST'])
+def upd_task(task_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    list_id = session['list_id']
+    session['task_id'] = task_id
+    task = db_task_by_id(task_id)
+    if task is None:
+        flash("L'information n'a pas pu être retrouvée.")
+        return redirect(url_for('upd_tasklist', list_id=list_id))
+    else:
+        app.logger.debug('getting assignments')
+        assignments = Assignment.query.filter_by(task_id=task_id).all()
+        for a in assignments:
+            app.logger.debug(a)
+            u = AppUser.query.filter_by(user_id=a.user_id).first()
+            a.user_name = u.first_name + ' ' + u.last_name
+    form = UpdTaskForm()
+    if form.validate_on_submit():
+        app.logger.debug('Updating a task')
+        save_task_name = task.task_name
+        task_name = form.task_name.data
+        task_desc = form.task_desc.data
+        if (task_name != save_task_name) and db_task_exists(task_name):
+            flash('Ce nom de tâche existe déjà. Veuillez en choisir un autre.')
+            return render_template("upd_task.html", form=form, list_id=list_id, task=task, assignments=assignments)
+        if db_upd_task(task_id, task_name, task_desc):
+            flash("La tâche a été modifiée.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+        return redirect(url_for('upd_tasklist', list_id=list_id))
+    else:
+        form.task_name.data = task.task_name
+        form.task_desc.data = task.task_desc
+        return render_template("upd_task.html", form=form, list_id=list_id, task=task, assignments=assignments)
+
+
+@app.route('/del_task/<int:task_id>', methods=['GET', 'POST'])
+def del_task(task_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    list_id = session['list_id']
+    form = DelEntityForm()
+    if form.validate_on_submit():
+        app.logger.debug('Deleting a task')
+        if db_del_task(task_id):
+            flash("La tâche a été effacée.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+        return redirect(url_for('upd_tasklist', list_id=list_id))
+    else:
+        task = db_task_by_id(task_id)
+        if task:
+            return render_template('del_task.html', form=form, task_name=task.task_name, list_id=list_id)
+        else:
+            flash("L'information n'a pas pu être retrouvée.")
+            return redirect(url_for('upd_tasklist', list_id=list_id))
+
+
+# Views for Assignments
+# Ordre des vues: list, show, add, upd, del
+@app.route('/sel_asgn/<int:task_id>')
+def sel_asgn(task_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+
+    assignments = Assignment.query.filter_by(task_id=task_id).all()
+    for a in assignments:
+        u = AppUser.query.filter_by(user_id=a.user_id).first()
+        a.user_name = u.first_name + ' ' + u.last_name
+
+    tmp_users = AppUser.query.order_by(AppUser.first_name).all()
+    users = []
+    for u in tmp_users:
+        if not db_asgn_exists(task_id, u.user_id):
+            users.append(u)
+    return render_template('sel_asgn.html', task_id=task_id, users=users, assignments=assignments)
+
+
+@app.route('/add_asgn/<int:task_id>/<int:user_id>')
+def add_asgn(task_id, user_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_asgn')
+    if db_add_asgn(task_id, user_id):
+        flash('La tâche a été assignée.')
+        return redirect(url_for('sel_asgn', task_id=task_id))
+    else:
+        flash('Une erreur de base de données est survenue.')
+        abort(500)
+
+
+@app.route('/del_asgn/<int:asgn_id>/<int:redir_to>')
+def del_asgn(asgn_id, redir_to):
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering del_asgn')
+    task_id = session['task_id']
+    if db_del_asgn(asgn_id):
+        flash('La tâche a été désassignée.')
+        if redir_to == 1:
+            return redirect(url_for('sel_asgn', task_id=task_id))
+        else:
+            return redirect(url_for('upd_task', task_id=task_id))
+    else:
+        flash('Une erreur de base de données est survenue.')
+        abort(500)
 
 # Views for Tags
 # Ordre des vues: list, show, add, upd, del
@@ -525,7 +659,32 @@ def list_tags():
         return redirect(url_for('login'))
     try:
         tags = Tag.query.order_by(Tag.tag_name).all()
+        for tag in tags:
+            u = db_user_by_id(tag.audit_crt_user)
+            tag.audit_crt_user_name = u.user_name()
         return render_template('list_tags.html', tags=tags)
+    except Exception as e:
+        flash("Quelque chose n'a pas fonctionné.")
+        app.logger.error('DB Error' + str(e))
+        abort(500)
+
+
+@app.route('/show_tag/<int:tag_id>')
+def show_tag(tag_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    try:
+        tag = db_tag_by_id(tag_id)
+        if tag:
+            u = db_user_by_id(tag.audit_crt_user)
+            tag.audit_crt_user_name = u.user_name()
+            if tag.audit_upd_user:
+                u = db_user_by_id(tag.audit_upd_user)
+                tag.audit_upd_user_name = u.user_name()
+            return render_template("show_tag.html", tag=tag)
+        else:
+            flash("L'information n'a pas pu être retrouvée.")
+            return redirect(url_for('list_tags'))
     except Exception as e:
         flash("Quelque chose n'a pas fonctionné.")
         app.logger.error('DB Error' + str(e))
@@ -558,15 +717,16 @@ def add_tag():
 def upd_tag(tag_id):
     if not logged_in():
         return redirect(url_for('login'))
-    tag = Tag.query.get(tag_id)
+    tag = db_tag_by_id(tag_id)
     if tag is None:
         flash("L'information n'a pas pu être retrouvée.")
         return redirect(url_for('list_tags'))
     form = UpdTagForm()
+    save_tag_name = tag.tag_name
     if form.validate_on_submit():
         app.logger.debug('Updating a tag')
         tag_name = form.tag_name.data
-        if db_tag_exists(tag_name):
+        if (tag_name != save_tag_name) and db_tag_exists(tag_name):
             flash("Ce nom d'étiquette existe déjà. Veuillez en choisir un autre.")
             return render_template("upd_tag.html", form=form, tag_id=tag_id, tag_name=tag.tag_name)
         if db_upd_tag(tag_id, tag_name):
@@ -593,18 +753,13 @@ def del_tag(tag_id):
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('list_tags'))
     else:
-        try:
-            tag = Tag.query.get(tag_id)
-            # Ici ce serait une bonne place pour voir s'il y a des tâches
-            if tag:
-                return render_template('del_tag.html', form=form, tag_name=tag.tag_name)
-            else:
-                flash("L'information n'a pas pu être retrouvée.")
-                return redirect(url_for('list_tags'))
-        except Exception as e:
-            flash("Quelque chose n'a pas fonctionné.")
-            app.logger.error('DB Error' + str(e))
-            abort(500)
+        tag = db_tag_by_id(tag_id)
+        # Ici ce serait une bonne place pour voir s'il y a des tâches
+        if tag:
+            return render_template('del_tag.html', form=form, tag_name=tag.tag_name)
+        else:
+            flash("L'information n'a pas pu être retrouvée.")
+            return redirect(url_for('list_tags'))
 
 
 # Application functions
@@ -632,7 +787,7 @@ def db_add_user(first_name, last_name, user_email, user_pass):
     try:
         user = AppUser(first_name, last_name, user_email, user_pass, audit_crt_ts)
         if user_email == "jean.petitclerc@groupepp.com":
-            user.activated = True
+            user.activated_ts = datetime.now()
         db.session.add(user)
         db.session.commit()
         return True
@@ -644,7 +799,7 @@ def db_add_user(first_name, last_name, user_email, user_pass):
 def db_act_user(user_id):
     try:
         user = AppUser.query.get(user_id)
-        user.activated = True
+        user.activated_ts = datetime.now()
         db.session.commit()
         return True
     except Exception as e:
@@ -665,6 +820,15 @@ def db_user_exists(user_email):
         return False
 
 
+def db_user_by_id(user_id):
+    try:
+        u = AppUser.query.get(user_id)
+        return u
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return None
+
+
 def db_change_password(user_email, new_password):
     try:
         user = AppUser.query.filter_by(user_email=user_email).first()
@@ -673,6 +837,7 @@ def db_change_password(user_email, new_password):
             return False
         else:
             user.user_pass = generate_password_hash(new_password)
+            user.audit_upd_ts = datetime.now()
             db.session.commit()
             flash("Mot de passe changé.")
             return True
@@ -690,7 +855,7 @@ def db_validate_user(user_email, password):
             flash("L'usager n'existe pas.")
             return False
 
-        if not user.activated:
+        if not user.activated_ts:
             flash("L'usager n'est pas activé.")
             return False
 
@@ -709,20 +874,7 @@ def db_validate_user(user_email, password):
         return False
 
 
-# DB functions for TaskList
-def db_add_tasklist(list_name, list_desc):
-    audit_crt_user = session.get('user_email', None)
-    audit_crt_ts = datetime.now()
-    tasklist = TaskList(list_name, list_desc, audit_crt_user, audit_crt_ts)
-    try:
-        db.session.add(tasklist)
-        db.session.commit()
-    except Exception as e:
-        app.logger.error('DB Error' + str(e))
-        return False
-    return True
-
-
+# DB functions for TaskList: exists, by_id, add, upd, del, others
 def db_tasklist_exists(list_name):
     app.logger.debug('Entering tasklist_exists with: ' + list_name)
     try:
@@ -736,17 +888,30 @@ def db_tasklist_exists(list_name):
         return False
 
 
-# DB functions for Task
-def db_add_tasklist():
+def db_tasklist_by_id(list_id):
+    try:
+        l = TaskList.query.get(list_id)
+        return l
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return None
+
+
+def db_add_tasklist(list_name, list_desc):
+    audit_crt_user = session.get('user_id', None)
+    audit_crt_ts = datetime.now()
+    tasklist = TaskList(list_name, list_desc, audit_crt_user, audit_crt_ts)
+    try:
+        db.session.add(tasklist)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
     return True
 
 
-def db_task_exists(task_name):
-    return False
-
-
 def db_upd_tasklist(list_id, list_name, list_desc):
-    audit_upd_user = session.get('user_email', None)
+    audit_upd_user = session.get('user_id', None)
     audit_upd_ts = datetime.now()
     try:
         tasklist = TaskList.query.get(list_id)
@@ -772,13 +937,47 @@ def db_del_tasklist(list_id):
     return True
 
 
-# DB functions for Tag
-def db_add_tag(tag_name):
-    audit_crt_user = session.get('user_email', None)
-    audit_crt_ts = datetime.now()
-    tag = Tag(tag_name, audit_crt_user, audit_crt_ts)
+def db_tasklist_has_tasks(list_id):
     try:
-        db.session.add(tag)
+        n = Task.query.filter_by(list_id=list_id).count()
+        if n > 0:
+            return True
+        else:
+            return False
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return None
+
+
+# DB functions for Task: exists, by_id, add, upd, del, others
+def db_task_exists(task_name):
+    app.logger.debug('Entering task_exists with: ' + task_name)
+    try:
+        task = Task.query.filter_by(task_name=task_name).first()
+        if task is None:
+            return False
+        else:
+            return True
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+
+
+def db_task_by_id(task_id):
+    try:
+        t = Task.query.get(task_id)
+        return t
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return None
+
+
+def db_add_task(list_id, task_name, task_desc):
+    audit_crt_user = session.get('user_id', None)
+    audit_crt_ts = datetime.now()
+    task = Task(list_id, task_name, task_desc, audit_crt_user, audit_crt_ts)
+    try:
+        db.session.add(task)
         db.session.commit()
     except Exception as e:
         app.logger.error('DB Error' + str(e))
@@ -786,6 +985,82 @@ def db_add_tag(tag_name):
     return True
 
 
+def db_upd_task(task_id, task_name, task_desc):
+    audit_upd_user = session.get('user_id', None)
+    audit_upd_ts = datetime.now()
+    try:
+        task = Task.query.get(task_id)
+        task.task_name = task_name
+        task.task_desc = task_desc
+        task.audit_upd_user = audit_upd_user
+        task.audit_upd_ts = audit_upd_ts
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+def db_del_task(task_id):
+    try:
+        task = Task.query.get(task_id)
+        assignments = Assignment.query.filter_by(task_id=task_id).all()
+        for a in assignments:
+            db.session.delete(a)
+        tags = TaskTag.query.filter_by(task_id=task_id).all()
+        for t in tags:
+            db.session.delete(t)
+        schedules = TaskSched.query.filter_by(task_id=task_id).all()
+        for s in schedules:
+            occurrences = TaskOccurence.query.filter_by(sched_id=s.sched_id).all()
+            for o in occurrences:
+                db.session.delete(o)
+            db.session.delete(s)
+        db.session.delete(task)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+# DB functions for Assignment: exists, by_id, add, upd, del, others
+def db_asgn_exists(task_id, user_id):
+    app.logger.debug('Entering asgn_exists with: ' + str(task_id) + ',' + str(user_id))
+    try:
+        asgn = Assignment.query.filter_by(task_id=task_id, user_id=user_id).first()
+        if asgn is None:
+            return False
+        else:
+            return True
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+
+
+def db_add_asgn(task_id, user_id):
+    asgn = Assignment(task_id, user_id)
+    try:
+        db.session.add(asgn)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+def db_del_asgn(asgn_id):
+    try:
+        asgn = Assignment.query.get(asgn_id)
+        db.session.delete(asgn)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+# DB functions for Tag: exists, by_id, add, upd, del, others
 def db_tag_exists(tag_name):
     app.logger.debug('Entering tag_exists with: ' + tag_name)
     try:
@@ -799,8 +1074,30 @@ def db_tag_exists(tag_name):
         return False
 
 
+def db_tag_by_id(tag_id):
+    try:
+        t = Tag.query.get(tag_id)
+        return t
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return None
+
+
+def db_add_tag(tag_name):
+    audit_crt_user = session.get('user_id', None)
+    audit_crt_ts = datetime.now()
+    tag = Tag(tag_name, audit_crt_user, audit_crt_ts)
+    try:
+        db.session.add(tag)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
 def db_upd_tag(tag_id, tag_name):
-    audit_upd_user = session.get('user_email', None)
+    audit_upd_user = session.get('user_id', None)
     audit_upd_ts = datetime.now()
     try:
         tag = Tag.query.get(tag_id)

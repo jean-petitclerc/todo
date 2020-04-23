@@ -19,8 +19,9 @@
             <tbody>
                 {% for tag in tags %}
                     <tr>
-                        <td>{{ tag['tag_name'] }}</td>
-                        <td>{{ tag['audit_crt_user'] }}</td>
+                        <td><a href="{{ url_for('show_tag', tag_id=tag['tag_id']) }}">
+                            {{ tag['tag_name'] }}</a></td>
+                        <td>{{ tag['audit_crt_user_name'] }}</td>
                         <td>{{ tag['audit_crt_ts'] }}</td>
                         <td class="text-center"><a href="{{ url_for('upd_tag', tag_id=tag['tag_id']) }}"
                             class="btn btn-primary btn-xs" data-title="Modifier">

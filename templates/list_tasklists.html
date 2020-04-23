@@ -21,14 +21,20 @@
                     <tr>
                         <td><a href="{{ url_for('show_tasklist', list_id=tasklist['list_id']) }}">
                             {{ tasklist['list_name'] }}</a></td>
-                        <td>{{ tasklist['audit_crt_user'] }}</td>
+                        <td>{{ tasklist['audit_crt_user_name'] }}</td>
                         <td>{{ tasklist['audit_crt_ts'] }}</td>
-                        <td class="text-center"><a href="{{ url_for('upd_tasklist', list_id=tasklist['list_id']) }}"
-                            class="btn btn-primary btn-xs" data-title="Modifier">
-                            <span class="glyphicon glyphicon-pencil"></span></a></td>
-                        <td class="text-center"><a href="{{ url_for('del_tasklist', list_id=tasklist['list_id']) }}"
-                            class="btn btn-danger btn-xs" data-title="Supprimer">
-                            <span class="glyphicon glyphicon-trash"></span></a></td>
+                        <td class="text-center">
+                            <a href="{{ url_for('upd_tasklist', list_id=tasklist['list_id']) }}"
+                               class="btn btn-primary btn-xs" data-title="Modifier">
+                               <span class="glyphicon glyphicon-pencil"></span>
+                            </a>
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ url_for('del_tasklist', list_id=tasklist['list_id']) }}"
+                               class="btn btn-danger btn-xs" data-title="Supprimer">
+                               <span class="glyphicon glyphicon-trash"></span>
+                            </a>
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>

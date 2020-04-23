@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block page_content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Étiquette: {{ tag.tag_name }}</h1>
+    </div>
+
+    <p>Ajouté par: {{ tag.audit_crt_user_name }}, le {{ tag.audit_crt_ts }}</p>
+    {% if tag.audit_upd_user %}
+        <p>Modifié par: {{ tag.audit_upd_user_name }}, le {{ tag.audit_upd_ts }}</p>
+    {% endif %}
+    <p><a href="{{ url_for('list_tags') }}" class="btn btn-default">Retour à la liste</a></p>
+    <p>&nbsp</p>
+</div>
+{% endblock %}

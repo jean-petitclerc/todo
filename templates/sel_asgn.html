@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block page_content %}
+<div class="container">
+    <h2>Attributions</h2>
+    {% if assignments %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th class="text-center">Désassigner</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for asgn in assignments %}
+                    <tr>
+                        <td>{{ asgn['user_name'] }}</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('del_asgn', asgn_id=asgn.asgn_id, redir_to=1) }}"
+                               class="btn btn-danger btn-xs" data-title="Désassigner">
+                               <span class="glyphicon glyphicon-minus"></span>
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <em>Aucune attribution pour cette tâche.</em>
+    {% endif %}
+
+    {% if users|length > 0 %}
+        <div class="page-header">
+            <h2>Liste des utilisateurs disponibles</h2>
+        </div>
+        <p>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th class="text-center">Assigner</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                    <tr>
+                        <td>{{ u['first_name'] }}&nbsp;{{ u['last_name'] }}</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('add_asgn', task_id=task_id, user_id=u['user_id']) }}"
+                               class="btn btn-primary btn-xs" data-title="Assigner">
+                                <span class="glyphicon glyphicon-plus"></span>
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </p>
+    {% endif %}
+    <p>&nbsp;</p>
+    <a href="{{ url_for('upd_task', task_id=task_id) }}" class="btn btn-default">Retour</a>
+</div>
+{% endblock %}

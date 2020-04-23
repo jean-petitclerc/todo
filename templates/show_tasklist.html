@@ -15,9 +15,29 @@
         </div>
     </div>
 
-    <p>Ajouté par: {{ tasklist.audit_crt_user }} le {{ tasklist.audit_crt_ts }}</p>
+    <h2>Tâches</h2>
+    {% if tasks %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                    <tr>
+                        <td>{{ task['task_name'] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        Aucune tâche dans cette liste.
+    {% endif %}
+    <p>&nbsp</p>
+    <p>Ajouté par: {{ tasklist.audit_crt_user_name }}, le {{ tasklist.audit_crt_ts }}</p>
     {% if tasklist.audit_upd_user %}
-        <p>Modifié par: {{ tasklist.audit_upd_user }} le {{ tasklist.audit_upd_ts }}</p>
+        <p>Modifié par: {{ tasklist.audit_upd_user_name }}, le {{ tasklist.audit_upd_ts }}</p>
     {% endif %}
     <p><a href="{{ url_for('list_tasklists') }}" class="btn btn-default">Retour à la liste</a></p>
     <p>&nbsp</p>

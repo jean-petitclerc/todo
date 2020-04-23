@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+</body>
+</html>
+
+        <div class="form-group">
+            {% for bouton in form.task_sched_type %}
+                <tr>
+                    <td>{{ bouton }}</td>
+                    <td>{{ bouton.label }}</td>
+                </tr>
+            {% endfor %}
+        </div>

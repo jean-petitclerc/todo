@@ -18,7 +18,7 @@
 {% block page_content %}
 <div class="container">
     <div class="page-header">
-        <h1>Modifier une Liste de Tâche</h1>
+        <h1>Modifier une Liste de Tâches</h1>
     </div>
 
     <form class="form" method="post" role="form">
@@ -33,5 +33,47 @@
         <input class="btn btn-default" id="submit" name="submit" type="submit" value="Modifier">
         <a href="{{ url_for('list_tasklists') }}" class="btn btn-default">Annuler</a>
     </form>
+
+    <h2>Tâches</h2>
+    {% if tasks %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th class="text-center">Modifier</th>
+                    <th class="text-center">Supprimer</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                    <tr>
+                        <td>{{ task['task_name'] }}</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('upd_task', task_id=task.task_id) }}"
+                               class="btn btn-primary btn-xs" data-title="Modifier">
+                               <span class="glyphicon glyphicon-pencil"></span>
+                            </a>
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ url_for('del_task', task_id=task.task_id) }}"
+                               class="btn btn-danger btn-xs" data-title="Supprimer">
+                               <span class="glyphicon glyphicon-trash"></span>
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <em>Aucune tâche dans cette liste.</em>
+        <p>
+            Cliquer&nbsp<a href="{{ url_for('add_task', list_id=list_id) }}">ici</a>&nbsp;pour en ajouter une.
+        </p>
+    {% endif %}
+    <p>
+        <a href="{{ url_for('add_task', list_id=list_id) }}" class="btn btn-default">Ajouter une tâche</a>
+        <a href="{{ url_for('list_tasklists') }}" class="btn btn-default">Retour</a>
+    </p>
+
 </div>
 {% endblock %}
