@@ -557,9 +557,13 @@ def upd_task(task_id):
         app.logger.debug('getting assignments')
         assignments = Assignment.query.filter_by(task_id=task_id).all()
         for a in assignments:
-            app.logger.debug(a)
             u = AppUser.query.filter_by(user_id=a.user_id).first()
             a.user_name = u.first_name + ' ' + u.last_name
+        task_tags = TaskTag.query.filter_by(task_id=task_id).all()
+        for t_tag in task_tags:
+            tag = Tag.query.filter_by(tag_id=t_tag.tag_id).first()
+            t_tag.tag_name = tag.tag_name
+
     form = UpdTaskForm()
     if form.validate_on_submit():
         app.logger.debug('Updating a task')
@@ -568,7 +572,8 @@ def upd_task(task_id):
         task_desc = form.task_desc.data
         if (task_name != save_task_name) and db_task_exists(task_name):
             flash('Ce nom de tâche existe déjà. Veuillez en choisir un autre.')
-            return render_template("upd_task.html", form=form, list_id=list_id, task=task, assignments=assignments)
+            return render_template("upd_task.html", form=form, list_id=list_id, task=task,
+                                   assignments=assignments, task_tags=task_tags)
         if db_upd_task(task_id, task_name, task_desc):
             flash("La tâche a été modifiée.")
         else:
@@ -577,7 +582,8 @@ def upd_task(task_id):
     else:
         form.task_name.data = task.task_name
         form.task_desc.data = task.task_desc
-        return render_template("upd_task.html", form=form, list_id=list_id, task=task, assignments=assignments)
+        return render_template("upd_task.html", form=form, list_id=list_id, task=task,
+                               assignments=assignments, task_tags=task_tags)
 
 
 @app.route('/del_task/<int:task_id>', methods=['GET', 'POST'])
@@ -650,6 +656,7 @@ def del_asgn(asgn_id, redir_to):
     else:
         flash('Une erreur de base de données est survenue.')
         abort(500)
+
 
 # Views for Tags
 # Ordre des vues: list, show, add, upd, del
@@ -760,6 +767,56 @@ def del_tag(tag_id):
         else:
             flash("L'information n'a pas pu être retrouvée.")
             return redirect(url_for('list_tags'))
+
+
+# Views for TaskTag
+# Ordre des vues: list, show, add, upd, del
+@app.route('/sel_ttag/<int:task_id>')
+def sel_ttag(task_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+
+    task_tags = TaskTag.query.filter_by(task_id=task_id).all()
+    for t_tag in task_tags:
+        tag = Tag.query.filter_by(tag_id=t_tag.tag_id).first()
+        t_tag.tag_name = tag.tag_name
+
+    tmp_tags = Tag.query.order_by(Tag.tag_name).all()
+    tags = []
+    for t in tmp_tags:
+        if not db_ttag_exists(task_id, t.tag_id):
+            tags.append(t)
+    return render_template('sel_ttag.html', task_id=task_id, tags=tags, task_tags=task_tags)
+
+
+@app.route('/add_ttag/<int:task_id>/<int:tag_id>')
+def add_ttag(task_id, tag_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_ttag')
+    if db_add_ttag(task_id, tag_id):
+        flash("L'étiquette a été ajoutée.")
+        return redirect(url_for('sel_ttag', task_id=task_id))
+    else:
+        flash('Une erreur de base de données est survenue.')
+        abort(500)
+
+
+@app.route('/del_ttag/<int:tag_id>/<int:redir_to>')
+def del_ttag(tag_id, redir_to):
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering del_ttag')
+    task_id = session['task_id']
+    if db_del_ttag(task_id, tag_id):
+        flash("L'étiquette a été enlevée.")
+        if redir_to == 1:
+            return redirect(url_for('sel_ttag', task_id=task_id))
+        else:
+            return redirect(url_for('upd_task', task_id=task_id))
+    else:
+        flash('Une erreur de base de données est survenue.')
+        abort(500)
 
 
 # Application functions
@@ -1115,6 +1172,42 @@ def db_del_tag(tag_id):
     try:
         tag = Tag.query.get(tag_id)
         db.session.delete(tag)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+# DB functions for TaskTag: exists, by_id, add, upd, del, others
+def db_ttag_exists(task_id, tag_id):
+    app.logger.debug('Entering ttag_exists with: ' + str(task_id) + ',' + str(tag_id))
+    try:
+        t_tag = TaskTag.query.filter_by(task_id=task_id, tag_id=tag_id).first()
+        if t_tag is None:
+            return False
+        else:
+            return True
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+
+
+def db_add_ttag(task_id, tag_id):
+    t_tag = TaskTag(task_id, tag_id)
+    try:
+        db.session.add(t_tag)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+def db_del_ttag(task_id, tag_id):
+    try:
+        t_tag = TaskTag.query.filter_by(task_id=task_id, tag_id=tag_id).first()
+        db.session.delete(t_tag)
         db.session.commit()
     except Exception as e:
         app.logger.error('DB Error' + str(e))

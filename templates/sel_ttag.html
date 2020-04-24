@@ -2,24 +2,24 @@
 {% block page_content %}
 <div class="container">
     <div class="page-header">
-        <h1>Gérer les Attributions</h1>
+        <h1>Gérer les Étiquettes</h1>
     </div>
-    <h2>Attributions Actuelles</h2>
-    {% if assignments %}
+    <h2>Étiquettes Actuelles</h2>
+    {% if task_tags %}
         <table class="table table-bordered">
             <thead>
                 <tr>
                     <th>Nom</th>
-                    <th class="text-center">Désassigner</th>
+                    <th class="text-center">Enlever</th>
                 </tr>
             </thead>
             <tbody>
-                {% for asgn in assignments %}
+                {% for t_tag in task_tags %}
                     <tr>
-                        <td>{{ asgn['user_name'] }}</td>
+                        <td>{{ t_tag['tag_name'] }}</td>
                         <td class="text-center">
-                            <a href="{{ url_for('del_asgn', asgn_id=asgn.asgn_id, redir_to=1) }}"
-                               class="btn btn-danger btn-xs" data-title="Désassigner">
+                            <a href="{{ url_for('del_ttag', tag_id=t_tag.tag_id, redir_to=1) }}"
+                               class="btn btn-danger btn-xs" data-title="Enlever">
                                <span class="glyphicon glyphicon-minus"></span>
                             </a>
                         </td>
@@ -28,26 +28,26 @@
             </tbody>
         </table>
     {% else %}
-        <em>Aucune attribution pour cette tâche.</em>
+        <em>Cette tâche n'a pas d'étiquette.</em>
     {% endif %}
 
-    <h2>Liste des utilisateurs disponibles</h2>
-    {% if users|length > 0 %}
+    <h2>Liste des étiquettes disponibles</h2>
+    {% if tags|length > 0 %}
         <p>
         <table class="table table-bordered">
             <thead>
                 <tr>
                     <th>Nom</th>
-                    <th class="text-center">Assigner</th>
+                    <th class="text-center">Ajouter</th>
                 </tr>
             </thead>
             <tbody>
-                {% for u in users %}
+                {% for tag in tags %}
                     <tr>
-                        <td>{{ u['first_name'] }}&nbsp;{{ u['last_name'] }}</td>
+                        <td>{{ tag['tag_name'] }}</td>
                         <td class="text-center">
-                            <a href="{{ url_for('add_asgn', task_id=task_id, user_id=u['user_id']) }}"
-                               class="btn btn-primary btn-xs" data-title="Assigner">
+                            <a href="{{ url_for('add_ttag', task_id=task_id, tag_id=tag['tag_id']) }}"
+                               class="btn btn-primary btn-xs" data-title="Ajouter">
                                 <span class="glyphicon glyphicon-plus"></span>
                             </a>
                         </td>
@@ -57,7 +57,7 @@
         </table>
         </p>
     {% else %}
-        <em>Cette tâche ne peut être assignée à d'autres utilisateurs.</em>
+        <em>Aucune étiquette disponible pour cette tâche.</em>
     {% endif %}
     <p>&nbsp;</p>
     <a href="{{ url_for('upd_task', task_id=task_id) }}" class="btn btn-default">Retour</a>

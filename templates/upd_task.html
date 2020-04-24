@@ -33,6 +33,7 @@
         <input class="btn btn-default" id="submit" name="submit" type="submit" value="Modifier">
         <a href="{{ url_for('upd_tasklist', list_id=list_id) }}" class="btn btn-default">Annuler</a>
     </form>
+    <p>&nbsp;</p>
 
     <h2>Attributions</h2>
     {% if assignments %}
@@ -63,10 +64,42 @@
             Cliquer&nbsp<a href="{{ url_for('sel_asgn', task_id=task.task_id) }}">ici</a>&nbsp;pour assigner la tâche.
         </p>
     {% endif %}
-    <p>
-        <a href="{{ url_for('sel_asgn', task_id=task.task_id) }}" class="btn btn-default">Assigner la tâche</a>
-        <a href="{{ url_for('upd_tasklist', list_id=list_id) }}" class="btn btn-default">Retour</a>
-    </p>
+    <a href="{{ url_for('sel_asgn', task_id=task.task_id) }}" class="btn btn-default">Gérer ses Attributions</a>
+    <a href="{{ url_for('upd_tasklist', list_id=list_id) }}" class="btn btn-default">Retour</a>
+    <p>&nbsp;</p>
+
+    <h2>Étiquettes</h2>
+    {% if task_tags %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th class="text-center">Enlever</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t_tag in task_tags %}
+                    <tr>
+                        <td>{{ t_tag['tag_name'] }}</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('del_ttag', tag_id=t_tag.tag_id, redir_to=2) }}"
+                               class="btn btn-danger btn-xs" data-title="Enlever">
+                               <span class="glyphicon glyphicon-minus"></span>
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <em>Aucune étiquette pour cette tâche.</em>
+        <p>
+            Cliquer&nbsp<a href="{{ url_for('sel_ttag', task_id=task.task_id) }}">ici</a>&nbsp;pour en ajouter.
+        </p>
+    {% endif %}
+    <a href="{{ url_for('sel_ttag', task_id=task.task_id) }}" class="btn btn-default">Gérer ses Étiquettes</a>
+    <a href="{{ url_for('upd_tasklist', list_id=list_id) }}" class="btn btn-default">Retour</a>
+    <p>&nbsp;</p>
 
 </div>
 {% endblock %}
