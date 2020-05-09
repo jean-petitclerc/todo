@@ -36,7 +36,7 @@
     <p>&nbsp;</p>
 
     <h2>Attributions</h2>
-    {% if assignments %}
+    {% if count_assignees > 0 %}
         <table class="table table-bordered">
             <thead>
                 <tr>
@@ -45,7 +45,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for asgn in assignments %}
+                {% for asgn in task.assignees %}
                     <tr>
                         <td>{{ asgn['user_name'] }}</td>
                         <td class="text-center">
@@ -68,8 +68,109 @@
     <a href="{{ url_for('upd_tasklist', list_id=list_id) }}" class="btn btn-default">Retour</a>
     <p>&nbsp;</p>
 
+    <h2>Cédules</h2>
+    {% if count_scheds %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Fréquence</th>
+                    <th class="text-center">Modifier</th>
+                    <th class="text-center">Supprimer</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for schd in task.schedules %}
+                    <tr>
+                        {% if schd.sched_type == 'O' %}
+                            <td>Unique le {{ schd.sched_start_dt }}</td>
+                            <td class="text-center">
+                                <a href="{{ url_for('upd_sched_one', sched_id=schd.sched_id) }}"
+                                   class="btn btn-primary btn-xs" data-title="Modifier">
+                                   <span class="glyphicon glyphicon-pencil"></span>
+                                </a>
+                            </td>
+                        {% elif schd.sched_type == 'd' %}
+                            {% if schd.sched_end_dt %}
+                                <td>Quotidienne du {{ schd.sched_start_dt }} au {{ schd.sched_end_dt }}</td>
+                            {% else %}
+                                <td>Quotidienne à partir du {{ schd.sched_start_dt }}</td>
+                            {% endif %}
+                            <td class="text-center">
+                                <a href="{{ url_for('upd_sched_dly', sched_id=schd.sched_id) }}"
+                                   class="btn btn-primary btn-xs" data-title="Modifier">
+                                   <span class="glyphicon glyphicon-pencil"></span>
+                                </a>
+                            </td>
+                        {% elif schd.sched_type == 'w' %}
+                            {% if schd.sched_end_dt %}
+                                <td>Hebdomadaire, le {{ dow[schd.sched_dow] }}, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}</td>
+                            {% else %}
+                                <td>Hebdomadaire, le {{ dow[schd.sched_dow] }}, à partir du {{ schd['sched_start_dt'] }} </td>
+                            {% endif %}
+                            <td class="text-center">
+                                <a href="{{ url_for('upd_sched_wly', sched_id=schd.sched_id) }}"
+                                   class="btn btn-primary btn-xs" data-title="Modifier">
+                                   <span class="glyphicon glyphicon-pencil"></span>
+                                </a>
+                            </td>
+                        {% elif schd.sched_type == 'm' %}
+                            {% if schd.sched_end_dt %}
+                                <td>Mensuelle, le jour {{ schd.sched_dom }} du mois, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}</td>
+                            {% else %}
+                                <td>Mensuelle, le jour {{ schd.sched_dom }} du mois, à partir du {{ schd['sched_start_dt'] }} </td>
+                            {% endif %}
+                            <td class="text-center">
+                                <a href="{{ url_for('upd_sched_mly', sched_id=schd.sched_id) }}"
+                                   class="btn btn-primary btn-xs" data-title="Modifier">
+                                   <span class="glyphicon glyphicon-pencil"></span>
+                                </a>
+                            </td>
+                        {% elif schd.sched_type == 'D' %}
+                            {% if schd.sched_end_dt %}
+                                <td>À chaque {{ schd.sched_int }} jours, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}</td>
+                            {% else %}
+                                <td>À chaque {{ schd.sched_int }} jours, à partir du {{ schd['sched_start_dt'] }} </td>
+                            {% endif %}
+                            <td>&nbsp;</td>
+                        {% elif schd.sched_type == 'W' %}
+                            {% if schd.sched_end_dt %}
+                                <td>Le {{ dow[schd.sched_dow] }}, à chaque {{ schd.sched_int }} semaines, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}</td>
+                            {% else %}
+                                <td>Le {{ dow[schd.sched_dow] }}, à chaque {{ schd.sched_int }} semaines, à partir du {{ schd['sched_start_dt'] }} </td>
+                            {% endif %}
+                            <td>&nbsp;</td>
+                        {% elif schd.sched_type == 'M' %}
+                            {% if schd.sched_end_dt %}
+                                <td>Le jour {{ schd.sched_dom }} du mois, à chaque {{ schd.sched_int }} mois, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}</td>
+                            {% else %}
+                                <td>Le jour {{ schd.sched_dom }} du mois, à chaque {{ schd.sched_int }} mois, à partir du {{ schd['sched_start_dt'] }} </td>
+                            {% endif %}
+                            <td>&nbsp;</td>
+                        {% else %}
+                            <td>Type Inconnu</td>
+                        {% endif %}
+                        <td class="text-center">
+                            <a href="{{ url_for('del_sched', sched_id=schd.sched_id) }}"
+                               class="btn btn-danger btn-xs" data-title="Supprimer">
+                               <span class="glyphicon glyphicon-trash"></span>
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <em>Aucune cédule pour cette tâche.</em>
+        <p>
+            Cliquer&nbsp<a href="{{ url_for('add_sched') }}">ici</a>&nbsp;pour céduler la tâche.
+        </p>
+    {% endif %}
+    <a href="{{ url_for('add_sched') }}" class="btn btn-default">Ajouter une Cédule</a>
+    <a href="{{ url_for('upd_tasklist', list_id=list_id) }}" class="btn btn-default">Retour</a>
+    <p>&nbsp;</p>
+
     <h2>Étiquettes</h2>
-    {% if task_tags %}
+    {% if count_tags > 0 %}
         <table class="table table-bordered">
             <thead>
                 <tr>
@@ -78,7 +179,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for t_tag in task_tags %}
+                {% for t_tag in task.tags %}
                     <tr>
                         <td>{{ t_tag['tag_name'] }}</td>
                         <td class="text-center">

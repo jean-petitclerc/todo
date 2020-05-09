@@ -12,19 +12,23 @@ from werkzeug.security import (generate_password_hash,
                                check_password_hash)
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
-from wtforms import (StringField,
-                     PasswordField,
-                     TextAreaField,
-                     BooleanField,
-                     SubmitField,
-                     IntegerField,
-                     SelectField)
+from wtforms.fields import (StringField,
+                            PasswordField,
+                            TextAreaField,
+                            BooleanField,
+                            SubmitField,
+                            IntegerField,
+                            SelectField,
+                            RadioField)
+from wtforms.fields.html5 import DateField
+from wtforms.widgets import Select
+from wtforms.widgets.html5 import (DateInput,
+                                   NumberInput)
 from wtforms.validators import (DataRequired,
                                 Email,
                                 EqualTo,
+                                Optional,
                                 NumberRange)  # Length, NumberRange
-from wtforms.fields import (DateField,
-                            RadioField)
 from flask_script import Manager
 from flask_sqlalchemy import SQLAlchemy
 from config import DevConfig
@@ -37,7 +41,9 @@ app.config.from_object(DevConfig)
 manager = Manager(app)
 bootstrap = Bootstrap(app)
 db = SQLAlchemy(app)
-
+dow = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+dow_choices=[('0', 'Dimanche'), ('1', 'Lundi'), ('2', 'Mardi'), ('3', 'Mercredi'),
+             ('4', 'Jeudi'), ('5', 'Vendredi'), ('6', 'Samedi')]
 
 # Database Model
 # ----------------------------------------------------------------------------------------------------------------------
@@ -122,7 +128,7 @@ class TaskSched(db.Model):
     sched_start_dt = db.Column(db.Date, nullable=False)
     sched_end_dt = db.Column(db.Date, nullable=True)
     sched_last_occ_dt = db.Column(db.Date, nullable=False)     # Last occurence date
-    sched_dow = db.Column(db.String(1), nullable=True)         # Day of week, 0..6
+    sched_dow = db.Column(db.SmallInteger(), nullable=True)    # Day of week, 0..6
     sched_dom = db.Column(db.SmallInteger(), nullable=True)    # Day of month 0..31
     sched_int = db.Column(db.SmallInteger(), nullable=True)    # Interval for every x D,W,M
     audit_crt_user = db.Column(db.Integer(), nullable=False)
@@ -286,6 +292,128 @@ class AddTagForm(FlaskForm):
 class UpdTagForm(FlaskForm):
     tag_name = StringField("Nom de l'étiquette", validators=[DataRequired(message='Le nom est requis.')])
     submit = SubmitField('Modifier')
+
+
+# Formulaires pour ajouter une cédule
+class AddSchedForm(FlaskForm):
+#    sched_type = SelectField("Type de cédule", choices=['O', 'd', 'w', 'm', 'D', 'W', 'M'],
+#                             validators=[DataRequired(message='Le type est requis.')])
+    submit = SubmitField('Suivant')
+
+# Fields to fill:
+#     task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
+#     sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
+class AddSchedOneForm(FlaskForm):
+    sched_start_dt = DateField("Date: ",
+                               validators=[DataRequired(message='La date est requise.')],
+                               format='%Y-%m-%d', widget=DateInput())
+    submit = SubmitField('Ajouter')
+
+
+class UpdSchedOneForm(FlaskForm):
+    sched_start_dt = DateField("Date: ",
+                               validators=[DataRequired(message='La date est requise.')],
+                               format='%Y-%m-%d', widget=DateInput())
+    submit = SubmitField('Modifier')
+
+
+class AddSchedDailyForm(FlaskForm):
+    sched_start_dt = DateField("Date de début: ",
+                               validators=[DataRequired(message='La date de début est requise.')],
+                               format='%Y-%m-%d', widget=DateInput())
+    sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
+                             validators=[Optional()], widget=DateInput())
+    submit = SubmitField('Ajouter')
+
+
+class UpdSchedDailyForm(FlaskForm):
+    sched_start_dt = DateField("Date de début: ",
+                               validators=[DataRequired(message='La date de début est requise.')],
+                               format='%Y-%m-%d', widget=DateInput())
+    sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
+                             validators=[Optional()], widget=DateInput())
+    submit = SubmitField('Modifier')
+
+
+class AddSchedWeeklyForm(FlaskForm):
+    sched_start_dt = DateField("Date de début: ",
+                               validators=[DataRequired(message='La date de début est requise.')],
+                               format='%Y-%m-%d', widget=DateInput())
+    sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
+                             validators=[Optional()], widget=DateInput())
+    sched_dow = SelectField("Jour de la semaine: ", choices=dow_choices,
+                            validators=[DataRequired(message="Le jour de la semaine doit être choisi.")],
+                            default=0, widget=Select())
+    submit = SubmitField('Ajouter')
+
+
+class UpdSchedWeeklyForm(FlaskForm):
+    sched_start_dt = DateField("Date de début: ",
+                               validators=[DataRequired(message='La date de début est requise.')],
+                               format='%Y-%m-%d', widget=DateInput())
+    sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
+                             validators=[Optional()], widget=DateInput())
+    sched_dow = SelectField("Jour de la semaine: ", choices=dow_choices,
+                            validators=[DataRequired(message="Le jour de la semaine doit être choisi.")],
+                            default=0, widget=Select())
+    submit = SubmitField('Modifier')
+
+
+class AddSchedMonthlyForm(FlaskForm):
+    sched_start_dt = DateField("Date de début: ",
+                               validators=[DataRequired(message='La date de début est requise.')],
+                               format='%Y-%m-%d', widget=DateInput())
+    sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
+                             validators=[Optional()], widget=DateInput())
+    submit = SubmitField('Ajouter')
+
+
+class UpdSchedMonthlyForm(FlaskForm):
+    sched_start_dt = DateField("Date de début: ",
+                               validators=[DataRequired(message='La date de début est requise.')],
+                               format='%Y-%m-%d', widget=DateInput())
+    sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
+                             validators=[Optional()], widget=DateInput())
+    submit = SubmitField('Ajouter')
+
+
+class AddSchedEveryXDaysForm(FlaskForm):
+    sched_start_dt = DateField("Date de début: ",
+                               validators=[DataRequired(message='La date de début est requise.')],
+                               format='%Y-%m-%d', widget=DateInput())
+    sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
+                             validators=[Optional()], widget=DateInput())
+    sched_int = IntegerField('Interval (en jours): ', default= 3,
+                             validators=[DataRequired(message="L'interval est requis.")],
+                             widget=NumberInput(min=1, max=30))
+    submit = SubmitField('Ajouter')
+
+
+class AddSchedEveryXWeeksForm(FlaskForm):
+    sched_start_dt = DateField("Date de début: ",
+                               validators=[DataRequired(message='La date de début est requise.')],
+                               format='%Y-%m-%d', widget=DateInput())
+    sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
+                             validators=[Optional()], widget=DateInput())
+    sched_dow = SelectField("Jour de la semaine: ", choices=dow_choices,
+                            validators=[DataRequired(message="Le jour de la semaine doit être choisi.")],
+                            default=0, widget=Select())
+    sched_int = IntegerField('Interval (en semaines): ', default= 2,
+                             validators=[DataRequired(message="L'interval est requis.")],
+                             widget=NumberInput(min=1, max=30))
+    submit = SubmitField('Ajouter')
+
+
+class AddSchedEveryXMonthsForm(FlaskForm):
+    sched_start_dt = DateField("Date de début: ",
+                               validators=[DataRequired(message='La date de début est requise.')],
+                               format='%Y-%m-%d', widget=DateInput())
+    sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
+                             validators=[Optional()], widget=DateInput())
+    sched_int = IntegerField('Interval (en mois): ', default= 2,
+                             validators=[DataRequired(message="L'interval est requis.")],
+                             widget=NumberInput(min=1, max=30))
+    submit = SubmitField('Ajouter')
 
 
 # The following functions are views
@@ -554,15 +682,20 @@ def upd_task(task_id):
         flash("L'information n'a pas pu être retrouvée.")
         return redirect(url_for('upd_tasklist', list_id=list_id))
     else:
-        app.logger.debug('getting assignments')
-        assignments = Assignment.query.filter_by(task_id=task_id).all()
-        for a in assignments:
+        app.logger.debug('getting assignees')
+        count_assignees = 0
+        for a in task.assignees:
+            count_assignees += 1
             u = AppUser.query.filter_by(user_id=a.user_id).first()
             a.user_name = u.first_name + ' ' + u.last_name
-        task_tags = TaskTag.query.filter_by(task_id=task_id).all()
-        for t_tag in task_tags:
+        count_tags = 0
+        for t_tag in task.tags:
+            count_tags += 1
             tag = Tag.query.filter_by(tag_id=t_tag.tag_id).first()
             t_tag.tag_name = tag.tag_name
+        count_scheds = 0
+        for schd in task.schedules:
+            count_scheds += 1
 
     form = UpdTaskForm()
     if form.validate_on_submit():
@@ -572,8 +705,8 @@ def upd_task(task_id):
         task_desc = form.task_desc.data
         if (task_name != save_task_name) and db_task_exists(task_name):
             flash('Ce nom de tâche existe déjà. Veuillez en choisir un autre.')
-            return render_template("upd_task.html", form=form, list_id=list_id, task=task,
-                                   assignments=assignments, task_tags=task_tags)
+            return render_template("upd_task.html", form=form, list_id=list_id, task=task, dow=dow,
+                                   count_assignees=count_assignees, count_tags=count_tags, count_scheds=count_scheds)
         if db_upd_task(task_id, task_name, task_desc):
             flash("La tâche a été modifiée.")
         else:
@@ -582,8 +715,8 @@ def upd_task(task_id):
     else:
         form.task_name.data = task.task_name
         form.task_desc.data = task.task_desc
-        return render_template("upd_task.html", form=form, list_id=list_id, task=task,
-                               assignments=assignments, task_tags=task_tags)
+        return render_template("upd_task.html", form=form, list_id=list_id, task=task, dow=dow,
+                               count_assignees=count_assignees, count_tags=count_tags, count_scheds=count_scheds)
 
 
 @app.route('/del_task/<int:task_id>', methods=['GET', 'POST'])
@@ -818,6 +951,374 @@ def del_ttag(tag_id, redir_to):
         flash('Une erreur de base de données est survenue.')
         abort(500)
 
+
+# Views for TaskSched
+# Ordre des vues: list, show, add, upd, del
+@app.route('/add_sched', methods=['GET', 'POST'])
+def add_sched():
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_sched')
+    task_id = session['task_id']
+    form = AddSchedForm()
+    if form.validate_on_submit():
+        app.logger.debug('Creating a new schedule')
+        sched_type = request.form['sched_type']
+        if sched_type == 'O':
+            return redirect(url_for('add_sched_one'))
+        elif sched_type == 'd':
+            return redirect(url_for('add_sched_dly'))
+        elif sched_type == 'w':
+            return redirect(url_for('add_sched_wly'))
+        elif sched_type == 'm':
+            return redirect(url_for('add_sched_mly'))
+        elif sched_type == 'D':
+            return redirect(url_for('add_sched_xdy'))
+        elif sched_type == 'W':
+            return redirect(url_for('add_sched_xwk'))
+        elif sched_type == 'M':
+            return redirect(url_for('add_sched_xmo'))
+    return render_template('add_sched.html', form=form, task_id=task_id)
+
+
+@app.route('/add_sched_one', methods=['GET', 'POST'])
+def add_sched_one():
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_sched_one')
+    task_id = session['task_id']
+    form = AddSchedOneForm()
+    if form.validate_on_submit():
+        app.logger.debug('Inserting a new schedule')
+        sched_start_dt = request.form['sched_start_dt']
+        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
+        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
+        if db_add_sched(task_id, 'O', sched_start_dt, None, sched_start_dt, None, None, None):
+            flash('La nouvelle cédule unique a été ajoutée.')
+            return redirect(url_for('upd_task', task_id=task_id))
+        else:
+            flash('Une erreur de base de données est survenue.')
+            abort(500)
+    return render_template('add_sched_one.html', form=form, task_id=task_id)
+
+
+@app.route('/add_sched_dly', methods=['GET', 'POST'])
+def add_sched_dly():
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_sched_dly')
+    task_id = session['task_id']
+    form = AddSchedDailyForm()
+    if form.validate_on_submit():
+        app.logger.debug('Inserting a new schedule')
+        sched_start_dt = request.form['sched_start_dt']
+        sched_end_dt = request.form['sched_end_dt']
+        if sched_end_dt:
+            if sched_start_dt > sched_end_dt:
+                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' + sched_start_dt + ').')
+                return render_template('add_sched_dly.html', form=form, task_id=task_id)
+        else:
+            sched_end_dt = None
+        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
+        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
+        if db_add_sched(task_id, 'd', sched_start_dt, sched_end_dt, sched_start_dt, None, None, None):
+            flash('La nouvelle cédule quotidienne a été ajoutée.')
+            return redirect(url_for('upd_task', task_id=task_id))
+        else:
+            flash('Une erreur de base de données est survenue.')
+            abort(500)
+    return render_template('add_sched_dly.html', form=form, task_id=task_id)
+
+
+@app.route('/add_sched_wly', methods=['GET', 'POST'])
+def add_sched_wly():
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_sched_wly')
+    task_id = session['task_id']
+    form = AddSchedWeeklyForm()
+    if form.validate_on_submit():
+        app.logger.debug('Inserting a new schedule')
+        sched_start_dt = request.form['sched_start_dt']
+        sched_end_dt = request.form['sched_end_dt']
+        sched_dow = request.form['sched_dow']
+        if sched_end_dt:
+            if sched_start_dt > sched_end_dt:
+                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' + sched_start_dt + ').')
+                return render_template('add_sched_wly.html', form=form, task_id=task_id)
+        else:
+            sched_end_dt = None
+        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
+        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
+        if db_add_sched(task_id, 'w', sched_start_dt, sched_end_dt, sched_start_dt, sched_dow, None, None):
+            flash('La nouvelle cédule hebdomadaire a été ajoutée.')
+            return redirect(url_for('upd_task', task_id=task_id))
+        else:
+            flash('Une erreur de base de données est survenue.')
+            abort(500)
+    return render_template('add_sched_wly.html', form=form, task_id=task_id)
+
+
+@app.route('/add_sched_mly', methods=['GET', 'POST'])
+def add_sched_mly():
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_sched_mly')
+    task_id = session['task_id']
+    form = AddSchedMonthlyForm()
+    if form.validate_on_submit():
+        app.logger.debug('Inserting a new schedule')
+        sched_start_dt = request.form['sched_start_dt']
+        sched_end_dt = request.form['sched_end_dt']
+        sched_dom = sched_start_dt[8:]
+        if sched_end_dt:
+            if sched_start_dt > sched_end_dt:
+                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' + sched_start_dt + ').')
+                return render_template('add_sched_mly.html', form=form, task_id=task_id)
+        else:
+            sched_end_dt = None
+        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
+        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
+        if db_add_sched(task_id, 'm', sched_start_dt, sched_end_dt, sched_start_dt, None, sched_dom, None):
+            flash('La nouvelle cédule mensuelle a été ajoutée.')
+            return redirect(url_for('upd_task', task_id=task_id))
+        else:
+            flash('Une erreur de base de données est survenue.')
+            abort(500)
+    return render_template('add_sched_mly.html', form=form, task_id=task_id)
+
+
+@app.route('/add_sched_xdy', methods=['GET', 'POST'])
+def add_sched_xdy():
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_sched_xdy')
+    task_id = session['task_id']
+    form = AddSchedEveryXDaysForm()
+    if form.validate_on_submit():
+        app.logger.debug('Inserting a new schedule')
+        sched_start_dt = request.form['sched_start_dt']
+        sched_end_dt = request.form['sched_end_dt']
+        sched_int = request.form['sched_int']
+        if sched_end_dt:
+            if sched_start_dt > sched_end_dt:
+                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' + sched_start_dt + ').')
+                return render_template('add_sched_xdy.html', form=form, task_id=task_id)
+        else:
+            sched_end_dt = None
+        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
+        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
+        if db_add_sched(task_id, 'D', sched_start_dt, sched_end_dt, sched_start_dt, None, None, sched_int):
+            flash('La nouvelle cédule en interval de jours a été ajoutée.')
+            return redirect(url_for('upd_task', task_id=task_id))
+        else:
+            flash('Une erreur de base de données est survenue.')
+            abort(500)
+    return render_template('add_sched_xdy.html', form=form, task_id=task_id)
+
+
+@app.route('/add_sched_xwk', methods=['GET', 'POST'])
+def add_sched_xwk():
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_sched_xwk')
+    task_id = session['task_id']
+    form = AddSchedEveryXWeeksForm()
+    if form.validate_on_submit():
+        app.logger.debug('Inserting a new schedule')
+        sched_start_dt = request.form['sched_start_dt']
+        sched_end_dt = request.form['sched_end_dt']
+        sched_dow = request.form['sched_dow']
+        sched_int = request.form['sched_int']
+        if sched_end_dt:
+            if sched_start_dt > sched_end_dt:
+                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' + sched_start_dt + ').')
+                return render_template('add_sched_xwk.html', form=form, task_id=task_id)
+        else:
+            sched_end_dt = None
+        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
+        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
+        if db_add_sched(task_id, 'W', sched_start_dt, sched_end_dt, sched_start_dt, sched_dow, None, sched_int):
+            flash('La nouvelle cédule en interval de semaines a été ajoutée.')
+            return redirect(url_for('upd_task', task_id=task_id))
+        else:
+            flash('Une erreur de base de données est survenue.')
+            abort(500)
+    return render_template('add_sched_xwk.html', form=form, task_id=task_id)
+
+
+@app.route('/add_sched_xmo', methods=['GET', 'POST'])
+def add_sched_xmo():
+    if not logged_in():
+        return redirect(url_for('login'))
+    app.logger.debug('Entering add_sched_xmo')
+    task_id = session['task_id']
+    form = AddSchedEveryXMonthsForm()
+    if form.validate_on_submit():
+        app.logger.debug('Inserting a new schedule')
+        sched_start_dt = request.form['sched_start_dt']
+        sched_end_dt = request.form['sched_end_dt']
+        sched_dom = sched_start_dt[8:]
+        sched_int = request.form['sched_int']
+        if sched_end_dt:
+            if sched_start_dt > sched_end_dt:
+                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' + sched_start_dt + ').')
+                return render_template('add_sched_xmo.html', form=form, task_id=task_id)
+        else:
+            sched_end_dt = None
+        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
+        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
+        if db_add_sched(task_id, 'M', sched_start_dt, sched_end_dt, sched_start_dt, None, sched_dom, sched_int):
+            flash('La nouvelle cédule en interval de mois a été ajoutée.')
+            return redirect(url_for('upd_task', task_id=task_id))
+        else:
+            flash('Une erreur de base de données est survenue.')
+            abort(500)
+    return render_template('add_sched_xmo.html', form=form, task_id=task_id)
+
+
+@app.route('/upd_sched_one/<int:sched_id>', methods=['GET', 'POST'])
+def upd_sched_one(sched_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    task_id = session['task_id']
+    sched = db_sched_by_id(sched_id)
+    if sched is None:
+        flash("L'information n'a pas pu être retrouvée.")
+        return redirect(url_for('upd_task', task_id=task_id))
+    form = UpdSchedOneForm()
+    if form.validate_on_submit():
+        app.logger.debug('Updating a schedule')
+        sched_start_dt = form.sched_start_dt.data
+        if db_upd_sched_one(sched_id, sched_start_dt):
+            flash("La cédule a été modifiée.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+        return redirect(url_for('upd_task', task_id=task_id))
+    else:
+        form.sched_start_dt.data = sched.sched_start_dt
+        return render_template("upd_sched_one.html", form=form, task_id=task_id, sched=sched)
+
+
+@app.route('/upd_sched_dly/<int:sched_id>', methods=['GET', 'POST'])
+def upd_sched_dly(sched_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    task_id = session['task_id']
+    sched = db_sched_by_id(sched_id)
+    if sched is None:
+        flash("L'information n'a pas pu être retrouvée.")
+        return redirect(url_for('upd_task', task_id=task_id))
+    form = UpdSchedDailyForm()
+    if form.validate_on_submit():
+        app.logger.debug('Updating a schedule')
+        sched_start_dt = form.sched_start_dt.data
+        sched_end_dt = form.sched_end_dt.data
+        if sched_end_dt:
+            if sched_start_dt > sched_end_dt:
+                flash('La date de fin (' + str(sched_end_dt) + ') doit être après la date de début ('
+                      + str(sched_start_dt) + ').')
+                return render_template('upd_sched_dly.html', form=form, task_id=task_id)
+        else:
+            sched_end_dt = None
+        if db_upd_sched_dly(sched_id, sched_start_dt, sched_end_dt):
+            flash("La cédule a été modifiée.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+        return redirect(url_for('upd_task', task_id=task_id))
+    else:
+        form.sched_start_dt.data = sched.sched_start_dt
+        form.sched_end_dt.data = sched.sched_end_dt
+        return render_template("upd_sched_dly.html", form=form, task_id=task_id, sched=sched)
+
+
+@app.route('/upd_sched_wly/<int:sched_id>', methods=['GET', 'POST'])
+def upd_sched_wly(sched_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    task_id = session['task_id']
+    sched = db_sched_by_id(sched_id)
+    if sched is None:
+        flash("L'information n'a pas pu être retrouvée.")
+        return redirect(url_for('upd_task', task_id=task_id))
+    form = UpdSchedWeeklyForm()
+    if form.validate_on_submit():
+        app.logger.debug('Updating a schedule')
+        sched_start_dt = form.sched_start_dt.data
+        sched_end_dt = form.sched_end_dt.data
+        sched_dow = form.sched_dow.data
+        if sched_end_dt:
+            if sched_start_dt > sched_end_dt:
+                flash('La date de fin (' + str(sched_end_dt) + ') doit être après la date de début ('
+                      + str(sched_start_dt) + ').')
+                return render_template('upd_sched_wly.html', form=form, task_id=task_id)
+        else:
+            sched_end_dt = None
+        if db_upd_sched_wly(sched_id, sched_start_dt, sched_end_dt, sched_dow):
+            flash("La cédule a été modifiée.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+        return redirect(url_for('upd_task', task_id=task_id))
+    else:
+        form.sched_start_dt.data = sched.sched_start_dt
+        form.sched_end_dt.data = sched.sched_end_dt
+        form.sched_dow.data = sched.sched_dow
+        return render_template("upd_sched_wly.html", form=form, task_id=task_id, sched=sched)
+
+
+@app.route('/upd_sched_mly/<int:sched_id>', methods=['GET', 'POST'])
+def upd_sched_mly(sched_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    task_id = session['task_id']
+    sched = db_sched_by_id(sched_id)
+    if sched is None:
+        flash("L'information n'a pas pu être retrouvée.")
+        return redirect(url_for('upd_task', task_id=task_id))
+    form = UpdSchedMonthlyForm()
+    if form.validate_on_submit():
+        app.logger.debug('Updating a schedule')
+        sched_start_dt = form.sched_start_dt.data
+        sched_end_dt = form.sched_end_dt.data
+        sched_dom = int(str(sched_start_dt)[8:])
+        if sched_end_dt:
+            if sched_start_dt > sched_end_dt:
+                flash('La date de fin (' + str(sched_end_dt) + ') doit être après la date de début ('
+                      + str(sched_start_dt) + ').')
+                return render_template('upd_sched_mly.html', form=form, task_id=task_id)
+        else:
+            sched_end_dt = None
+        if db_upd_sched_mly(sched_id, sched_start_dt, sched_end_dt, sched_dom):
+            flash("La cédule a été modifiée.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+        return redirect(url_for('upd_task', task_id=task_id))
+    else:
+        form.sched_start_dt.data = sched.sched_start_dt
+        form.sched_end_dt.data = sched.sched_end_dt
+        return render_template("upd_sched_mly.html", form=form, task_id=task_id, sched=sched)
+
+
+@app.route('/del_sched/<int:sched_id>', methods=['GET', 'POST'])
+def del_sched(sched_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    task_id = session['task_id']
+    form = DelEntityForm()
+    if form.validate_on_submit():
+        app.logger.debug('Deleting a schedule')
+        if db_del_sched(sched_id):
+            flash("La cédule a été effacée.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+        return redirect(url_for('upd_task', task_id=task_id))
+    else:
+        sched = db_sched_by_id(sched_id)
+        if sched:
+            return render_template('del_sched.html', form=form, task_id=task_id, sched=sched)
+        else:
+            flash("L'information n'a pas pu être retrouvée.")
+            return redirect(url_for('upd_task', task_id=task_id))
 
 # Application functions
 # ----------------------------------------------------------------------------------------------------------------------
@@ -1074,6 +1575,107 @@ def db_del_task(task_id):
                 db.session.delete(o)
             db.session.delete(s)
         db.session.delete(task)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+# DB functions for Task: exists, by_id, add, upd, del, others
+def db_sched_by_id(sched_id):
+    try:
+        s = TaskSched.query.get(sched_id)
+        return s
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return None
+
+
+def db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
+                 sched_dow, sched_dom, sched_int):
+    audit_crt_user = session.get('user_id', None)
+    audit_crt_ts = datetime.now()
+    sched = TaskSched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
+                     sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts)
+    try:
+        db.session.add(sched)
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+def db_upd_sched_one(sched_id, sched_start_dt):
+    audit_upd_user = session.get('user_id', None)
+    audit_upd_ts = datetime.now()
+    try:
+        sched = TaskSched.query.get(sched_id)
+        sched.sched_start_dt = sched_start_dt
+        sched.audit_upd_user = audit_upd_user
+        sched.audit_upd_ts = audit_upd_ts
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+def db_upd_sched_dly(sched_id, sched_start_dt, sched_end_dt):
+    audit_upd_user = session.get('user_id', None)
+    audit_upd_ts = datetime.now()
+    try:
+        sched = TaskSched.query.get(sched_id)
+        sched.sched_start_dt = sched_start_dt
+        sched.sched_end_dt = sched_end_dt
+        sched.audit_upd_user = audit_upd_user
+        sched.audit_upd_ts = audit_upd_ts
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+def db_upd_sched_wly(sched_id, sched_start_dt, sched_end_dt, sched_dow):
+    audit_upd_user = session.get('user_id', None)
+    audit_upd_ts = datetime.now()
+    try:
+        sched = TaskSched.query.get(sched_id)
+        sched.sched_start_dt = sched_start_dt
+        sched.sched_end_dt = sched_end_dt
+        sched.sched_dow = sched_dow
+        sched.audit_upd_user = audit_upd_user
+        sched.audit_upd_ts = audit_upd_ts
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+def db_upd_sched_mly(sched_id, sched_start_dt, sched_end_dt, sched_dom):
+    audit_upd_user = session.get('user_id', None)
+    audit_upd_ts = datetime.now()
+    try:
+        sched = TaskSched.query.get(sched_id)
+        sched.sched_start_dt = sched_start_dt
+        sched.sched_end_dt = sched_end_dt
+        sched.sched_dom = sched_dom
+        sched.audit_upd_user = audit_upd_user
+        sched.audit_upd_ts = audit_upd_ts
+        db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+def db_del_sched(sched_id):
+    try:
+        sched = TaskSched.query.get(sched_id)
+        db.session.delete(sched)
         db.session.commit()
     except Exception as e:
         app.logger.error('DB Error' + str(e))

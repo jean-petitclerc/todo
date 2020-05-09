@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% macro render_field(field) %}
+    <div class="form-group">
+        {{ field.label(class="control-label") }}
+        {{ field(**kwargs)|safe }}
+        {% if field.errors %}
+            <ul class=errors>
+            {% for error in field.errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% block page_content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Modifier une Cédule Quotidienne</h1>
+    </div>
+
+    <form class="form" method="post" role="form">
+        {{ form.hidden_tag() }}
+        {{ wtf.form_errors(form, hiddens="only") }}
+        {{ render_field(form.sched_start_dt) }}
+        {{ render_field(form.sched_end_dt) }}
+        <input class="btn btn-default" id="submit" name="submit" type="submit" value="Modifier">
+        <a href="{{ url_for('upd_task', task_id=task_id) }}" class="btn btn-default">Annuler</a>
+    </form>
+</div>
+{% endblock %}

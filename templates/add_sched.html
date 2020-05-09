@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% macro render_field(field) %}
+    <div class="form-group">
+        {{ field.label(class="control-label") }}
+        {{ field(**kwargs)|safe }}
+        {% if field.errors %}
+            <ul class=errors>
+            {% for error in field.errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% block page_content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Ajouter une Nouvelle Cédule</h1>
+    </div>
+
+    <form class="form" method="post" role="form">
+        {{ form.hidden_tag() }}
+        {{ wtf.form_errors(form, hiddens="only") }}
+
+        <div class="form-group ">
+            <div class="radio">
+                <label><input type="radio" name="sched_type" value="O" checked>Une fois</label>
+            </div>
+            <div class="radio">
+                <label><input type="radio" name="sched_type" value="d">Quotidienne</label>
+            </div>
+            <div class="radio">
+                <label><input type="radio" name="sched_type" value="w">Hebdomadaire</label>
+            </div>
+            <div class="radio">
+                <label><input type="radio" name="sched_type" value="m">Mensuelle</label>
+            </div>
+            <div class="radio">
+                <label><input type="radio" name="sched_type" value="D">À chaque n jours</label>
+            </div>
+            <div class="radio">
+                <label><input type="radio" name="sched_type" value="W">À chaque n semaines</label>
+            </div>
+            <div class="radio">
+                <label><input type="radio" name="sched_type" value="M">À chaque n mois</label>
+            </div>
+        </div>
+
+        <input class="btn btn-default" id="submit" name="submit" type="submit" value="Suivant">
+        <a href="{{ url_for('upd_task', task_id=task_id) }}" class="btn btn-default">Annuler</a>
+    </form>
+</div>
+{% endblock %}
