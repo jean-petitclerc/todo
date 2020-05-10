@@ -131,21 +131,36 @@
                             {% else %}
                                 <td>À chaque {{ schd.sched_int }} jours, à partir du {{ schd['sched_start_dt'] }} </td>
                             {% endif %}
-                            <td>&nbsp;</td>
+                            <td class="text-center">
+                                <a href="{{ url_for('upd_sched_xdy', sched_id=schd.sched_id) }}"
+                                   class="btn btn-primary btn-xs" data-title="Modifier">
+                                   <span class="glyphicon glyphicon-pencil"></span>
+                                </a>
+                            </td>
                         {% elif schd.sched_type == 'W' %}
                             {% if schd.sched_end_dt %}
                                 <td>Le {{ dow[schd.sched_dow] }}, à chaque {{ schd.sched_int }} semaines, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}</td>
                             {% else %}
                                 <td>Le {{ dow[schd.sched_dow] }}, à chaque {{ schd.sched_int }} semaines, à partir du {{ schd['sched_start_dt'] }} </td>
                             {% endif %}
-                            <td>&nbsp;</td>
+                            <td class="text-center">
+                                <a href="{{ url_for('upd_sched_xwk', sched_id=schd.sched_id) }}"
+                                   class="btn btn-primary btn-xs" data-title="Modifier">
+                                   <span class="glyphicon glyphicon-pencil"></span>
+                                </a>
+                            </td>
                         {% elif schd.sched_type == 'M' %}
                             {% if schd.sched_end_dt %}
                                 <td>Le jour {{ schd.sched_dom }} du mois, à chaque {{ schd.sched_int }} mois, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}</td>
                             {% else %}
                                 <td>Le jour {{ schd.sched_dom }} du mois, à chaque {{ schd.sched_int }} mois, à partir du {{ schd['sched_start_dt'] }} </td>
                             {% endif %}
-                            <td>&nbsp;</td>
+                            <td class="text-center">
+                                <a href="{{ url_for('upd_sched_xmo', sched_id=schd.sched_id) }}"
+                                   class="btn btn-primary btn-xs" data-title="Modifier">
+                                   <span class="glyphicon glyphicon-pencil"></span>
+                                </a>
+                            </td>
                         {% else %}
                             <td>Type Inconnu</td>
                         {% endif %}
