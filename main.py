@@ -5,9 +5,7 @@ from flask import (Flask,
                    request,
                    render_template,
                    flash,
-                   g,
-                   abort,
-                   escape)
+                   abort)  # g, escape
 from werkzeug.security import (generate_password_hash,
                                check_password_hash)
 from flask_bootstrap import Bootstrap
@@ -18,8 +16,7 @@ from wtforms.fields import (StringField,
                             BooleanField,
                             SubmitField,
                             IntegerField,
-                            SelectField,
-                            RadioField)
+                            SelectField)  # RadioField
 from wtforms.fields.html5 import DateField
 from wtforms.widgets import Select
 from wtforms.widgets.html5 import (DateInput,
@@ -27,23 +24,26 @@ from wtforms.widgets.html5 import (DateInput,
 from wtforms.validators import (DataRequired,
                                 Email,
                                 EqualTo,
-                                Optional,
-                                NumberRange)  # Length, NumberRange
+                                Optional)  # Length, NumberRange
 from flask_script import Manager
 from flask_sqlalchemy import SQLAlchemy
 from config import DevConfig
+from datetime import timedelta
 from datetime import datetime
-from sqlalchemy import UniqueConstraint
-
+from calendar import monthrange
 
 app = Flask(__name__)
 app.config.from_object(DevConfig)
 manager = Manager(app)
 bootstrap = Bootstrap(app)
 db = SQLAlchemy(app)
-dow = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
-dow_choices=[('0', 'Dimanche'), ('1', 'Lundi'), ('2', 'Mardi'), ('3', 'Mercredi'),
-             ('4', 'Jeudi'), ('5', 'Vendredi'), ('6', 'Samedi')]
+dow = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+dow_choices = [('6', 'Dimanche'), ('0', 'Lundi'), ('1', 'Mardi'), ('2', 'Mercredi'),
+               ('3', 'Jeudi'), ('4', 'Vendredi'), ('5', 'Samedi')]
+sched_types = {'O': 'Unique', 'd': 'Quotidienne', 'w': 'Hebdomadaire', 'm': 'Mensuelle',
+               'D': 'À chaque x jours', 'W': 'À chaque x semaines', 'M': 'À chaque x mois'}
+task_status = {'T': 'À Faire', 'D': 'Faite', 'C': 'Annulée', 'S': 'Sautée'}
+
 
 # Database Model
 # ----------------------------------------------------------------------------------------------------------------------
@@ -147,7 +147,7 @@ class TaskSched(db.Model):
         self.sched_dow = sched_dow
         self.sched_dom = sched_dom
         self.sched_int = sched_int
-        self.audit_crt_user= audit_crt_user
+        self.audit_crt_user = audit_crt_user
         self.audit_crt_ts = audit_crt_ts
 
     def __repr__(self):
@@ -160,11 +160,15 @@ class TaskOccurence(db.Model):
     task_id = db.Column(db.Integer(), db.ForeignKey('ttask.task_id'))
     sched_id = db.Column(db.Integer(), db.ForeignKey('ttask_sched.sched_id'))
     sched_dt = db.Column(db.Date, nullable=False)
-    status = db.Column(db.String(1), nullable=False, default='T')  # T:Todo, D:Done, C:Cancelled
+    status = db.Column(db.String(1), nullable=False, default='T')  # T:To_do, D:Done, C:Cancelled, S:Skipped
     audit_upd_user = db.Column(db.Integer(), nullable=True)
     audit_upd_ts = db.Column(db.DateTime(), nullable=True)
 
-    def __init__(self):
+    def __init__(self, task_id, sched_id, sched_dt):
+        self.task_id = task_id
+        self.sched_id = sched_id
+        self.sched_dt = sched_dt
+        self.status = 'T'
         return
 
     def __repr__(self):
@@ -296,13 +300,11 @@ class UpdTagForm(FlaskForm):
 
 # Formulaires pour ajouter une cédule
 class AddSchedForm(FlaskForm):
-#    sched_type = SelectField("Type de cédule", choices=['O', 'd', 'w', 'm', 'D', 'W', 'M'],
-#                             validators=[DataRequired(message='Le type est requis.')])
+    #    sched_type = SelectField("Type de cédule", choices=['O', 'd', 'w', 'm', 'D', 'W', 'M'],
+    #                             validators=[DataRequired(message='Le type est requis.')])
     submit = SubmitField('Suivant')
 
-# Fields to fill:
-#     task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
-#     sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
+
 class AddSchedOneForm(FlaskForm):
     sched_start_dt = DateField("Date: ",
                                validators=[DataRequired(message='La date est requise.')],
@@ -383,7 +385,7 @@ class AddSchedEveryXDaysForm(FlaskForm):
                                format='%Y-%m-%d', widget=DateInput())
     sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
                              validators=[Optional()], widget=DateInput())
-    sched_int = IntegerField('Interval (en jours): ', default= 3,
+    sched_int = IntegerField('Interval (en jours): ', default=3,
                              validators=[DataRequired(message="L'interval est requis.")],
                              widget=NumberInput(min=1, max=30))
     submit = SubmitField('Ajouter')
@@ -395,7 +397,7 @@ class UpdSchedEveryXDaysForm(FlaskForm):
                                format='%Y-%m-%d', widget=DateInput())
     sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
                              validators=[Optional()], widget=DateInput())
-    sched_int = IntegerField('Interval (en jours): ', default= 3,
+    sched_int = IntegerField('Interval (en jours): ', default=3,
                              validators=[DataRequired(message="L'interval est requis.")],
                              widget=NumberInput(min=1, max=30))
     submit = SubmitField('Modifier')
@@ -410,7 +412,7 @@ class AddSchedEveryXWeeksForm(FlaskForm):
     sched_dow = SelectField("Jour de la semaine: ", choices=dow_choices,
                             validators=[DataRequired(message="Le jour de la semaine doit être choisi.")],
                             default='0', widget=Select())
-    sched_int = IntegerField('Interval (en semaines): ', default= 2,
+    sched_int = IntegerField('Interval (en semaines): ', default=2,
                              validators=[DataRequired(message="L'interval est requis.")],
                              widget=NumberInput(min=1, max=30))
     submit = SubmitField('Ajouter')
@@ -425,7 +427,7 @@ class UpdSchedEveryXWeeksForm(FlaskForm):
     sched_dow = SelectField("Jour de la semaine: ", choices=dow_choices,
                             validators=[DataRequired(message="Le jour de la semaine doit être choisi.")],
                             widget=Select())
-    sched_int = IntegerField('Interval (en semaines): ', default= 2,
+    sched_int = IntegerField('Interval (en semaines): ', default=2,
                              validators=[DataRequired(message="L'interval est requis.")],
                              widget=NumberInput(min=1, max=30))
     submit = SubmitField('Modifier')
@@ -437,7 +439,7 @@ class AddSchedEveryXMonthsForm(FlaskForm):
                                format='%Y-%m-%d', widget=DateInput())
     sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
                              validators=[Optional()], widget=DateInput())
-    sched_int = IntegerField('Interval (en mois): ', default= 2,
+    sched_int = IntegerField('Interval (en mois): ', default=2,
                              validators=[DataRequired(message="L'interval est requis.")],
                              widget=NumberInput(min=1, max=30))
     submit = SubmitField('Ajouter')
@@ -449,10 +451,11 @@ class UpdSchedEveryXMonthsForm(FlaskForm):
                                format='%Y-%m-%d', widget=DateInput())
     sched_end_dt = DateField("Date de fin (Optionelle): ", format='%Y-%m-%d',
                              validators=[Optional()], widget=DateInput())
-    sched_int = IntegerField('Interval (en mois): ', default= 2,
+    sched_int = IntegerField('Interval (en mois): ', default=2,
                              validators=[DataRequired(message="L'interval est requis.")],
                              widget=NumberInput(min=1, max=30))
     submit = SubmitField('Modifier')
+
 
 # The following functions are views
 # ----------------------------------------------------------------------------------------------------------------------
@@ -685,6 +688,33 @@ def del_tasklist(list_id):
 
 # Views for Tasks
 # Ordre des vues: list, show, add, upd, del
+@app.route('/list_tasks')
+def list_tasks():
+    if not logged_in():
+        return redirect(url_for('login'))
+    try:
+        user_id = session.get('user_id', None)
+        if user_id:
+            user = AppUser.query.get(user_id)
+            tasks = AppUser.query.join(Assignment, AppUser.user_id == Assignment.user_id)\
+                .join(Task, Assignment.task_id == Task.task_id)\
+                .join(TaskSched, Task.task_id == TaskSched.task_id)\
+                .join(TaskOccurence, TaskSched.sched_id == TaskOccurence.sched_id)\
+                .filter(AppUser.user_id == user_id, TaskOccurence.status == 'T')\
+                .add_columns(Task.task_id, Task.task_name, TaskSched.sched_type, TaskSched.sched_int,
+                             TaskOccurence.sched_dt, TaskOccurence.occur_id)\
+                .order_by(TaskOccurence.sched_dt)
+            return render_template('list_tasks.html', user=user, tasks=tasks, sched_types=sched_types)
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+            abort(500)
+        return render_template('todo.html')
+    except Exception as e:
+        flash("Quelque chose n'a pas fonctionné.")
+        app.logger.error('DB Error' + str(e))
+        abort(500)
+
+
 @app.route('/add_task', methods=['GET', 'POST'])
 def add_task():
     if not logged_in():
@@ -732,7 +762,7 @@ def upd_task(task_id):
             tag = Tag.query.filter_by(tag_id=t_tag.tag_id).first()
             t_tag.tag_name = tag.tag_name
         count_scheds = 0
-        for schd in task.schedules:
+        for _ in task.schedules:
             count_scheds += 1
 
     form = UpdTaskForm()
@@ -1028,11 +1058,16 @@ def add_sched_one():
     form = AddSchedOneForm()
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
+        sched_type = 'O'
         sched_start_dt = request.form['sched_start_dt']
-        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
-        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
-        if db_add_sched(task_id, 'O', sched_start_dt, None, sched_start_dt, None, None, None):
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, None, sched_start_dt, None, None, None)
+        if sched_id:
             flash('La nouvelle cédule unique a été ajoutée.')
+            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+                flash('Une occurence de cette tâche a été ajoutée.')
+            else:
+                flash('Une erreur de base de données est survenue.')
+                abort(500)
             return redirect(url_for('upd_task', task_id=task_id))
         else:
             flash('Une erreur de base de données est survenue.')
@@ -1049,18 +1084,24 @@ def add_sched_dly():
     form = AddSchedDailyForm()
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
+        sched_type = 'd'
         sched_start_dt = request.form['sched_start_dt']
         sched_end_dt = request.form['sched_end_dt']
         if sched_end_dt:
             if sched_start_dt > sched_end_dt:
-                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' + sched_start_dt + ').')
+                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' +
+                      sched_start_dt + ').')
                 return render_template('add_sched_dly.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
-        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
-        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
-        if db_add_sched(task_id, 'd', sched_start_dt, sched_end_dt, sched_start_dt, None, None, None):
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_start_dt, None, None, None)
+        if sched_id:
             flash('La nouvelle cédule quotidienne a été ajoutée.')
+            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+                flash('Une occurence de cette tâche ont été ajoutées.')
+            else:
+                flash('Une erreur de base de données est survenue.')
+                abort(500)
             return redirect(url_for('upd_task', task_id=task_id))
         else:
             flash('Une erreur de base de données est survenue.')
@@ -1077,19 +1118,26 @@ def add_sched_wly():
     form = AddSchedWeeklyForm()
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
+        sched_type = 'w'
         sched_start_dt = request.form['sched_start_dt']
         sched_end_dt = request.form['sched_end_dt']
         sched_dow = request.form['sched_dow']
         if sched_end_dt:
             if sched_start_dt > sched_end_dt:
-                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' + sched_start_dt + ').')
+                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' +
+                      sched_start_dt + ').')
                 return render_template('add_sched_wly.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
-        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
-        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
-        if db_add_sched(task_id, 'w', sched_start_dt, sched_end_dt, sched_start_dt, sched_dow, None, None):
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_start_dt, sched_dow, None,
+                                None)
+        if sched_id:
             flash('La nouvelle cédule hebdomadaire a été ajoutée.')
+            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+                flash('Une occurence de cette tâche a été ajoutée.')
+            else:
+                flash('Une erreur de base de données est survenue.')
+                abort(500)
             return redirect(url_for('upd_task', task_id=task_id))
         else:
             flash('Une erreur de base de données est survenue.')
@@ -1106,19 +1154,26 @@ def add_sched_mly():
     form = AddSchedMonthlyForm()
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
+        sched_type = 'm'
         sched_start_dt = request.form['sched_start_dt']
         sched_end_dt = request.form['sched_end_dt']
         sched_dom = sched_start_dt[8:]
         if sched_end_dt:
             if sched_start_dt > sched_end_dt:
-                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' + sched_start_dt + ').')
+                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' +
+                      sched_start_dt + ').')
                 return render_template('add_sched_mly.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
-        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
-        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
-        if db_add_sched(task_id, 'm', sched_start_dt, sched_end_dt, sched_start_dt, None, sched_dom, None):
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_start_dt, None, sched_dom,
+                                None)
+        if sched_id:
             flash('La nouvelle cédule mensuelle a été ajoutée.')
+            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+                flash('Une occurence de cette tâche a été ajoutée.')
+            else:
+                flash('Une erreur de base de données est survenue.')
+                abort(500)
             return redirect(url_for('upd_task', task_id=task_id))
         else:
             flash('Une erreur de base de données est survenue.')
@@ -1135,19 +1190,26 @@ def add_sched_xdy():
     form = AddSchedEveryXDaysForm()
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
+        sched_type = 'D'
         sched_start_dt = request.form['sched_start_dt']
         sched_end_dt = request.form['sched_end_dt']
         sched_int = request.form['sched_int']
         if sched_end_dt:
             if sched_start_dt > sched_end_dt:
-                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' + sched_start_dt + ').')
+                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' +
+                      sched_start_dt + ').')
                 return render_template('add_sched_xdy.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
-        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
-        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
-        if db_add_sched(task_id, 'D', sched_start_dt, sched_end_dt, sched_start_dt, None, None, sched_int):
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_start_dt, None, None,
+                                sched_int)
+        if sched_id:
             flash('La nouvelle cédule en interval de jours a été ajoutée.')
+            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+                flash('Une occurence de cette tâche a été ajoutée.')
+            else:
+                flash('Une erreur de base de données est survenue.')
+                abort(500)
             return redirect(url_for('upd_task', task_id=task_id))
         else:
             flash('Une erreur de base de données est survenue.')
@@ -1164,20 +1226,27 @@ def add_sched_xwk():
     form = AddSchedEveryXWeeksForm()
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
+        sched_type = 'W'
         sched_start_dt = request.form['sched_start_dt']
         sched_end_dt = request.form['sched_end_dt']
         sched_dow = request.form['sched_dow']
         sched_int = request.form['sched_int']
         if sched_end_dt:
             if sched_start_dt > sched_end_dt:
-                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' + sched_start_dt + ').')
+                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' +
+                      sched_start_dt + ').')
                 return render_template('add_sched_xwk.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
-        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
-        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
-        if db_add_sched(task_id, 'W', sched_start_dt, sched_end_dt, sched_start_dt, sched_dow, None, sched_int):
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_start_dt, sched_dow, None,
+                                sched_int)
+        if sched_id:
             flash('La nouvelle cédule en interval de semaines a été ajoutée.')
+            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+                flash('Une occurence de cette tâche a été ajoutée.')
+            else:
+                flash('Une erreur de base de données est survenue.')
+                abort(500)
             return redirect(url_for('upd_task', task_id=task_id))
         else:
             flash('Une erreur de base de données est survenue.')
@@ -1194,20 +1263,27 @@ def add_sched_xmo():
     form = AddSchedEveryXMonthsForm()
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
+        sched_type = 'M'
         sched_start_dt = request.form['sched_start_dt']
         sched_end_dt = request.form['sched_end_dt']
         sched_dom = sched_start_dt[8:]
         sched_int = request.form['sched_int']
         if sched_end_dt:
             if sched_start_dt > sched_end_dt:
-                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' + sched_start_dt + ').')
+                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' +
+                      sched_start_dt + ').')
                 return render_template('add_sched_xmo.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
-        # (task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
-        #  sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts):
-        if db_add_sched(task_id, 'M', sched_start_dt, sched_end_dt, sched_start_dt, None, sched_dom, sched_int):
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_start_dt, None, sched_dom,
+                                sched_int)
+        if sched_id:
             flash('La nouvelle cédule en interval de mois a été ajoutée.')
+            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+                flash('Une occurence de cette tâche a été ajoutée.')
+            else:
+                flash('Une erreur de base de données est survenue.')
+                abort(500)
             return redirect(url_for('upd_task', task_id=task_id))
         else:
             flash('Une erreur de base de données est survenue.')
@@ -1230,6 +1306,7 @@ def upd_sched_one(sched_id):
         sched_start_dt = form.sched_start_dt.data
         if db_upd_sched_one(sched_id, sched_start_dt):
             flash("La cédule a été modifiée.")
+            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1261,6 +1338,7 @@ def upd_sched_dly(sched_id):
             sched_end_dt = None
         if db_upd_sched_dly(sched_id, sched_start_dt, sched_end_dt):
             flash("La cédule a été modifiée.")
+            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1294,6 +1372,7 @@ def upd_sched_wly(sched_id):
             sched_end_dt = None
         if db_upd_sched_wly(sched_id, sched_start_dt, sched_end_dt, sched_dow):
             flash("La cédule a été modifiée.")
+            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1328,6 +1407,7 @@ def upd_sched_mly(sched_id):
             sched_end_dt = None
         if db_upd_sched_mly(sched_id, sched_start_dt, sched_end_dt, sched_dom):
             flash("La cédule a été modifiée.")
+            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1361,6 +1441,7 @@ def upd_sched_xdy(sched_id):
             sched_end_dt = None
         if db_upd_sched_xdy(sched_id, sched_start_dt, sched_end_dt, sched_int):
             flash("La cédule a été modifiée.")
+            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1396,6 +1477,7 @@ def upd_sched_xwk(sched_id):
             sched_end_dt = None
         if db_upd_sched_xwk(sched_id, sched_start_dt, sched_end_dt, sched_dow, sched_int):
             flash("La cédule a été modifiée.")
+            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1432,6 +1514,7 @@ def upd_sched_xmo(sched_id):
             sched_end_dt = None
         if db_upd_sched_xmo(sched_id, sched_start_dt, sched_end_dt, sched_dom, sched_int):
             flash("La cédule a été modifiée.")
+            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1462,6 +1545,43 @@ def del_sched(sched_id):
         else:
             flash("L'information n'a pas pu être retrouvée.")
             return redirect(url_for('upd_task', task_id=task_id))
+
+
+@app.route('/list_occurs/<int:sched_id>')
+def list_occurs(sched_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    task_id = session['task_id']
+    try:
+        task = db_task_by_id(task_id)
+        occurs = TaskOccurence.query.filter_by(sched_id=sched_id).order_by(TaskOccurence.sched_dt).all()
+        for occ in occurs:
+            if occ.audit_upd_user:
+                u = db_user_by_id(occ.audit_upd_user)
+                occ.audit_upd_user_name = u.user_name()
+            else:
+                occ.audit_upd_user_name = 'N/A'
+        return render_template('list_occurs.html', occurs=occurs, task=task, task_status=task_status)
+    except Exception as e:
+        flash("Quelque chose n'a pas fonctionné.")
+        app.logger.error('DB Error' + str(e))
+        abort(500)
+
+
+@app.route('/set_occur_status/<int:occur_id>/<string:status>')
+def set_occur_status(occur_id, status):
+    if not logged_in():
+        return redirect(url_for('login'))
+    # task_status = {'T': 'À Faire', 'D': 'Faite', 'C': 'Annulée', 'S': 'Sautée'}
+    app.logger.debug('Entering set_occur_status')
+    if db_set_occ_status(occur_id, status):
+        flash("Le status a été changé.")
+        # todo: Créer l'occurence suivante
+        return redirect(url_for('list_tasks'))
+    else:
+        flash('Une erreur de base de données est survenue.')
+        abort(500)
+
 
 # Application functions
 # ----------------------------------------------------------------------------------------------------------------------
@@ -1591,8 +1711,8 @@ def db_tasklist_exists(list_name):
 
 def db_tasklist_by_id(list_id):
     try:
-        l = TaskList.query.get(list_id)
-        return l
+        lst = TaskList.query.get(list_id)
+        return lst
     except Exception as e:
         app.logger.error('DB Error' + str(e))
         return None
@@ -1740,14 +1860,14 @@ def db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_o
     audit_crt_user = session.get('user_id', None)
     audit_crt_ts = datetime.now()
     sched = TaskSched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_occ_dt,
-                     sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts)
+                      sched_dow, sched_dom, sched_int, audit_crt_user, audit_crt_ts)
     try:
         db.session.add(sched)
         db.session.commit()
     except Exception as e:
         app.logger.error('DB Error' + str(e))
         return False
-    return True
+    return sched.sched_id
 
 
 def db_upd_sched_one(sched_id, sched_start_dt):
@@ -1871,8 +1991,186 @@ def db_upd_sched_xmo(sched_id, sched_start_dt, sched_end_dt, sched_dom, sched_in
 def db_del_sched(sched_id):
     try:
         sched = TaskSched.query.get(sched_id)
+        for occ in sched.occurences:
+            db.session.delete(occ)
         db.session.delete(sched)
         db.session.commit()
+    except Exception as e:
+        app.logger.error('DB Error' + str(e))
+        return False
+    return True
+
+
+# DB functions for TaskOccurence: exists, by_id, add, upd, del, others
+def db_add_occur(sched_type, task_id, sched_id, sched_dt, update_mode='N'):
+    app.logger.debug('Entering db_add_occur')
+    # In update_mode, delete the occurences with a status To_Do
+    if update_mode == 'Y':
+        try:
+            sched = db_sched_by_id(sched_id)
+            for occ in sched.occurences:
+                if occ.status == 'T':
+                    db.session.delete(occ)
+        except Exception as e:
+            app.logger.error('DB Error' + str(e))
+            return False
+
+    if sched_type == 'O':
+        try:
+            sched = db_sched_by_id(sched_id)
+            sched.sched_last_occ_dt = sched_dt
+            occur = TaskOccurence(task_id, sched_id, sched_dt)
+            db.session.add(occur)
+            db.session.commit()
+        except Exception as e:
+            app.logger.error('DB Error' + str(e))
+            return False
+        return True
+    elif sched_type == 'd':
+        try:
+            sched = db_sched_by_id(sched_id)
+            if sched.sched_start_dt == sched.sched_last_occ_dt:
+                sched_dt = sched.sched_start_dt
+            else:
+                sched_dt = sched.sched_last_occ_dt + timedelta(days=1)
+            if (sched.sched_end_dt is None) or (sched_dt <= sched.sched_end_dt):
+                app.logger.debug('Adding occurence: ' + str(task_id) + ', ' + str(sched_id) + ', ' + str(sched_dt))
+                occur = TaskOccurence(task_id, sched_id, sched_dt)
+                db.session.add(occur)
+            sched.sched_last_occ_dt = sched_dt
+            db.session.commit()
+        except Exception as e:
+            app.logger.error('DB Error: ' + str(e))
+            return False
+        return True
+    elif sched_type == 'w':
+        try:
+            sched = db_sched_by_id(sched_id)
+            if sched.sched_start_dt == sched.sched_last_occ_dt:
+                sched_dt = sched.sched_start_dt
+                sched_dow = sched.sched_dow
+                dow_start_dt = sched_dt.weekday()
+                if sched_dow > dow_start_dt:
+                    sched_dt = sched_dt + timedelta(days=sched_dow - dow_start_dt)
+                elif sched_dow < dow_start_dt:
+                    delta_days = 7 - (dow_start_dt - sched_dow)
+                    sched_dt = sched_dt + timedelta(days=delta_days)
+            else:
+                sched_dt = sched.sched_last_occ_dt + timedelta(days=7)
+            if (sched.sched_end_dt is None) or (sched_dt <= sched.sched_end_dt):
+                occur = TaskOccurence(task_id, sched_id, sched_dt)
+                sched.sched_last_occ_dt = sched_dt
+                db.session.add(occur)
+            db.session.commit()
+        except Exception as e:
+            app.logger.error('DB Error: ' + str(e))
+            return False
+        return True
+    elif sched_type == 'm':
+        try:
+            sched = db_sched_by_id(sched_id)
+            if sched.sched_start_dt == sched.sched_last_occ_dt:
+                sched_dt = sched.sched_start_dt
+            else:
+                temp_dt = sched.sched_last_occ_dt
+                days_in_month = monthrange(temp_dt.year, temp_dt.month)[1]
+                temp_dt = temp_dt + timedelta(days=(days_in_month - temp_dt.day + 1))  # First day of next month
+                days_in_next_month = monthrange(temp_dt.year, temp_dt.month)
+                if sched.sched_dom > days_in_next_month:
+                    sched_dt = temp_dt + timedelta(days=(days_in_next_month - 1))
+                else:
+                    sched_dt = temp_dt + timedelta(days=(sched.sched_dom - 1))
+            if (sched.sched_end_dt is None) or (sched_dt <= sched.sched_end_dt):
+                app.logger.debug('Adding occurence: ' + str(task_id) + ', ' + str(sched_id) + ', ' + str(sched_dt))
+                occur = TaskOccurence(task_id, sched_id, sched_dt)
+                sched.sched_last_occ_dt = sched_dt
+                db.session.add(occur)
+            db.session.commit()
+        except Exception as e:
+            app.logger.error('DB Error: ' + str(e))
+            return False
+        return True
+    elif sched_type == 'D':
+        try:
+            sched = db_sched_by_id(sched_id)
+            if sched.sched_start_dt == sched.sched_last_occ_dt:
+                sched_dt = sched.sched_start_dt
+            else:
+                sched_dt = sched.sched_last_occ_dt + timedelta(days=sched.sched_int)
+            if (sched.sched_end_dt is None) or (sched_dt <= sched.sched_end_dt):
+                app.logger.debug('Adding occurence: ' + str(task_id) + ', ' + str(sched_id) + ', ' + str(sched_dt))
+                occur = TaskOccurence(task_id, sched_id, sched_dt)
+                sched.sched_last_occ_dt = sched_dt
+                db.session.add(occur)
+            db.session.commit()
+        except Exception as e:
+            app.logger.error('DB Error: ' + str(e))
+            return False
+        return True
+    elif sched_type == 'W':
+        try:
+            sched = db_sched_by_id(sched_id)
+            if sched.sched_start_dt == sched.sched_last_occ_dt:
+                sched_dt = sched.sched_start_dt
+                sched_dow = sched.sched_dow
+                dow_start_dt = sched_dt.weekday()
+                if sched_dow > dow_start_dt:
+                    sched_dt = sched_dt + timedelta(days=sched_dow - dow_start_dt)
+                elif sched_dow < dow_start_dt:
+                    delta_days = 7 - (dow_start_dt - sched_dow)
+                    sched_dt = sched_dt + timedelta(days=delta_days)
+            else:
+                sched_dt = sched.sched_last_occ_dt + timedelta(days=(7 * sched.sched_int))
+            if (sched.sched_end_dt is None) or (sched_dt <= sched.sched_end_dt):
+                occur = TaskOccurence(task_id, sched_id, sched_dt)
+                sched.sched_last_occ_dt = sched_dt
+                db.session.add(occur)
+            db.session.commit()
+        except Exception as e:
+            app.logger.error('DB Error: ' + str(e))
+            return False
+        return True
+    elif sched_type == 'M':
+        try:
+            sched = db_sched_by_id(sched_id)
+            if sched.sched_start_dt == sched.sched_last_occ_dt:
+                sched_dt = sched.sched_start_dt
+            else:
+                temp_dt = sched.sched_last_occ_dt
+                temp_dt = temp_dt - timedelta(days=(sched.sched_last_occ_dt.day - 1))  # Go to first of month
+                for _ in range(sched.sched_int):  # Repeat for the number of times in the interval
+                    days_in_month = monthrange(temp_dt.year, temp_dt.month)[1]
+                    temp_dt = temp_dt + timedelta(days=days_in_month)  # Go to the First day of next month
+                days_in_month = monthrange(temp_dt.year, temp_dt.month)
+                if sched.sched_dom > days_in_month:
+                    sched_dt = temp_dt + timedelta(days=(days_in_month - 1))
+                else:
+                    sched_dt = temp_dt + timedelta(days=(sched.sched_dom - 1))
+            if (sched.sched_end_dt is None) or (sched_dt <= sched.sched_end_dt):
+                occur = TaskOccurence(task_id, sched_id, sched_dt)
+                sched.sched_last_occ_dt = sched_dt
+                db.session.add(occur)
+            db.session.commit()
+        except Exception as e:
+            app.logger.error('DB Error: ' + str(e))
+            return False
+        return True
+    else:
+        return False
+
+
+def db_set_occ_status(occur_id, status):
+    audit_upd_user = session.get('user_id', None)
+    audit_upd_ts = datetime.now()
+    try:
+        occ = TaskOccurence.query.get(occur_id)
+        if occ is None:
+            return False
+        else:
+            occ.status = status
+            occ.audit_upd_user = audit_upd_user
+            occ.audit_upd_ts = audit_upd_ts
+            db.session.commit()
     except Exception as e:
         app.logger.error('DB Error' + str(e))
         return False

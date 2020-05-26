@@ -82,7 +82,11 @@
                 {% for schd in task.schedules %}
                     <tr>
                         {% if schd.sched_type == 'O' %}
-                            <td>Unique le {{ schd.sched_start_dt }}</td>
+                            <td>
+                                <a href="{{ url_for('list_occurs', sched_id=schd.sched_id) }}">
+                                    Unique le {{ schd.sched_start_dt }}
+                                </a>
+                            </td>
                             <td class="text-center">
                                 <a href="{{ url_for('upd_sched_one', sched_id=schd.sched_id) }}"
                                    class="btn btn-primary btn-xs" data-title="Modifier">
@@ -90,11 +94,15 @@
                                 </a>
                             </td>
                         {% elif schd.sched_type == 'd' %}
-                            {% if schd.sched_end_dt %}
-                                <td>Quotidienne du {{ schd.sched_start_dt }} au {{ schd.sched_end_dt }}</td>
-                            {% else %}
-                                <td>Quotidienne à partir du {{ schd.sched_start_dt }}</td>
-                            {% endif %}
+                            <td>
+                                <a href="{{ url_for('list_occurs', sched_id=schd.sched_id) }}">
+                                {% if schd.sched_end_dt %}
+                                    Quotidienne du {{ schd.sched_start_dt }} au {{ schd.sched_end_dt }}
+                                {% else %}
+                                    Quotidienne à partir du {{ schd.sched_start_dt }}
+                                {% endif %}
+                                </a>
+                            </td>
                             <td class="text-center">
                                 <a href="{{ url_for('upd_sched_dly', sched_id=schd.sched_id) }}"
                                    class="btn btn-primary btn-xs" data-title="Modifier">
@@ -102,11 +110,15 @@
                                 </a>
                             </td>
                         {% elif schd.sched_type == 'w' %}
-                            {% if schd.sched_end_dt %}
-                                <td>Hebdomadaire, le {{ dow[schd.sched_dow] }}, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}</td>
-                            {% else %}
-                                <td>Hebdomadaire, le {{ dow[schd.sched_dow] }}, à partir du {{ schd['sched_start_dt'] }} </td>
-                            {% endif %}
+                            <td>
+                                <a href="{{ url_for('list_occurs', sched_id=schd.sched_id) }}">
+                                {% if schd.sched_end_dt %}
+                                    Hebdomadaire, le {{ dow[schd.sched_dow] }}, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}
+                                {% else %}
+                                    Hebdomadaire, le {{ dow[schd.sched_dow] }}, à partir du {{ schd['sched_start_dt'] }}
+                                {% endif %}
+                                </a>
+                            </td>
                             <td class="text-center">
                                 <a href="{{ url_for('upd_sched_wly', sched_id=schd.sched_id) }}"
                                    class="btn btn-primary btn-xs" data-title="Modifier">
@@ -114,11 +126,15 @@
                                 </a>
                             </td>
                         {% elif schd.sched_type == 'm' %}
-                            {% if schd.sched_end_dt %}
-                                <td>Mensuelle, le jour {{ schd.sched_dom }} du mois, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}</td>
-                            {% else %}
-                                <td>Mensuelle, le jour {{ schd.sched_dom }} du mois, à partir du {{ schd['sched_start_dt'] }} </td>
-                            {% endif %}
+                            <td>
+                                <a href="{{ url_for('list_occurs', sched_id=schd.sched_id) }}">
+                                {% if schd.sched_end_dt %}
+                                    Mensuelle, le jour {{ schd.sched_dom }} du mois, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}
+                                {% else %}
+                                    Mensuelle, le jour {{ schd.sched_dom }} du mois, à partir du {{ schd['sched_start_dt'] }}
+                                {% endif %}
+                                </a>
+                            </td>
                             <td class="text-center">
                                 <a href="{{ url_for('upd_sched_mly', sched_id=schd.sched_id) }}"
                                    class="btn btn-primary btn-xs" data-title="Modifier">
@@ -126,11 +142,15 @@
                                 </a>
                             </td>
                         {% elif schd.sched_type == 'D' %}
-                            {% if schd.sched_end_dt %}
-                                <td>À chaque {{ schd.sched_int }} jours, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}</td>
-                            {% else %}
-                                <td>À chaque {{ schd.sched_int }} jours, à partir du {{ schd['sched_start_dt'] }} </td>
-                            {% endif %}
+                            <td>
+                                <a href="{{ url_for('list_occurs', sched_id=schd.sched_id) }}">
+                                {% if schd.sched_end_dt %}
+                                    À chaque {{ schd.sched_int }} jours, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}
+                                {% else %}
+                                    À chaque {{ schd.sched_int }} jours, à partir du {{ schd['sched_start_dt'] }}
+                                {% endif %}
+                                </a>
+                            </td>
                             <td class="text-center">
                                 <a href="{{ url_for('upd_sched_xdy', sched_id=schd.sched_id) }}"
                                    class="btn btn-primary btn-xs" data-title="Modifier">
@@ -138,11 +158,15 @@
                                 </a>
                             </td>
                         {% elif schd.sched_type == 'W' %}
-                            {% if schd.sched_end_dt %}
-                                <td>Le {{ dow[schd.sched_dow] }}, à chaque {{ schd.sched_int }} semaines, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}</td>
-                            {% else %}
-                                <td>Le {{ dow[schd.sched_dow] }}, à chaque {{ schd.sched_int }} semaines, à partir du {{ schd['sched_start_dt'] }} </td>
-                            {% endif %}
+                            <td>
+                                <a href="{{ url_for('list_occurs', sched_id=schd.sched_id) }}">
+                                {% if schd.sched_end_dt %}
+                                    Le {{ dow[schd.sched_dow] }}, à chaque {{ schd.sched_int }} semaines, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}
+                                {% else %}
+                                    Le {{ dow[schd.sched_dow] }}, à chaque {{ schd.sched_int }} semaines, à partir du {{ schd['sched_start_dt'] }}
+                                {% endif %}
+                                </a>
+                            </td>
                             <td class="text-center">
                                 <a href="{{ url_for('upd_sched_xwk', sched_id=schd.sched_id) }}"
                                    class="btn btn-primary btn-xs" data-title="Modifier">
@@ -150,11 +174,15 @@
                                 </a>
                             </td>
                         {% elif schd.sched_type == 'M' %}
-                            {% if schd.sched_end_dt %}
-                                <td>Le jour {{ schd.sched_dom }} du mois, à chaque {{ schd.sched_int }} mois, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}</td>
-                            {% else %}
-                                <td>Le jour {{ schd.sched_dom }} du mois, à chaque {{ schd.sched_int }} mois, à partir du {{ schd['sched_start_dt'] }} </td>
-                            {% endif %}
+                            <td>
+                                <a href="{{ url_for('list_occurs', sched_id=schd.sched_id) }}">
+                                {% if schd.sched_end_dt %}
+                                    Le jour {{ schd.sched_dom }} du mois, à chaque {{ schd.sched_int }} mois, du {{ schd['sched_start_dt'] }} au {{ schd['sched_end_dt'] }}
+                                {% else %}
+                                    Le jour {{ schd.sched_dom }} du mois, à chaque {{ schd.sched_int }} mois, à partir du {{ schd['sched_start_dt'] }}
+                                {% endif %}
+                                </a>
+                            </td>
                             <td class="text-center">
                                 <a href="{{ url_for('upd_sched_xmo', sched_id=schd.sched_id) }}"
                                    class="btn btn-primary btn-xs" data-title="Modifier">

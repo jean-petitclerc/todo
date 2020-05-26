@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block page_content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Liste d'occurences de la tâches {{ task.task_name }}</h1>
+    </div>
+    <p>
+        {% if occurs %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Date cédulée</th>
+                    <th>Status</th>
+                    <th>Modifié par</th>
+                    <th>Modifié le</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for occ in occurs %}
+                    <tr>
+                        <td>{{ occ.sched_dt }}</td>
+                        <td>{{ task_status[occ.status] }}</td>
+                        <td>{{ occ.audit_upd_user_name }}</td>
+                        {% if occ.audit_upd_ts %}
+                            <td>{{ occ.audit_upd_ts }}</td>
+                        {% else %}
+                            <td>N/A</td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <em>Il n'y a pas d'occurence de cette cédule dans la base de données</em>
+        {% endif %}
+    </p>
+    <p>
+        <a href="{{ url_for('upd_task', task_id=task.task_id) }}" class="btn btn-default">Retour</a>
+    </p>
+</div>
+{% endblock %}

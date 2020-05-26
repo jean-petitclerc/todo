@@ -3,3 +3,7 @@ psycopg2
 flask-script
 flask-bootstrap
 flask-wtf
+
+Flask~=1.1.1
+Werkzeug~=1.0.0
+WTForms~=2.2.1

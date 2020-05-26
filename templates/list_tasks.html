@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block page_content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Liste des Tâches pour {{ user.first_name }}</h1>
+    </div>
+    <p>
+        {% if tasks %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Tâche</th>
+                    <th>Cédule</th>
+                    <th>Date</th>
+                    <th class="text-center">Compléter</th>
+                    <th class="text-center">Sauter</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('upd_task', task_id=task.task_id) }}">{{ task.task_name }}</a>
+                        </td>
+                        {% if task.sched_type == 'D' %}
+                            <td>À chaque {{ task.sched_int }} jours</td>
+                        {% elif task.sched_type == 'W' %}
+                            <td>À chaque {{ task.sched_int }} semaines</td>
+                        {% elif task.sched_type == 'M' %}
+                            <td>À chaque {{ task.sched_int }} mois</td>
+                        {% else %}
+                            <td>{{ sched_types[task.sched_type] }}</td>
+                        {% endif %}
+                        <td>{{ task.sched_dt }}</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('set_occur_status', occur_id=task.occur_id, status='D') }}"
+                               class="btn btn-success btn-xs" data-title="Compléter">
+                               <span class="glyphicon glyphicon-ok"></span>
+                            </a>
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ url_for('set_occur_status', occur_id=task.occur_id, status='S') }}"
+                               class="btn btn-warning btn-xs" data-title="Sauter">
+                               <span class="glyphicon glyphicon-step-forward"></span>
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <em>Il n'y a pas de tâche pour {{ user.first_name }}.</em>
+        {% endif %}
+    </p>
+    <a href="{{ url_for('index') }}" class="btn btn-default">Retour</a>
+    <p>&nbsp;</p>
+</div>
+{% endblock %}
