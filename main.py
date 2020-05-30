@@ -27,6 +27,7 @@ from wtforms.validators import (DataRequired,
                                 Optional)  # Length, NumberRange
 from flask_script import Manager
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import desc
 from config import DevConfig
 from datetime import timedelta
 from datetime import datetime
@@ -127,7 +128,7 @@ class TaskSched(db.Model):
     sched_type = db.Column(db.String(1), nullable=False)       # O:one, d:daily, w:weekly, m:monthly, D,W,M every x
     sched_start_dt = db.Column(db.Date, nullable=False)
     sched_end_dt = db.Column(db.Date, nullable=True)
-    sched_last_occ_dt = db.Column(db.Date, nullable=False)     # Last occurence date
+    sched_last_occ_dt = db.Column(db.Date, nullable=True)     # Last occurence date
     sched_dow = db.Column(db.SmallInteger(), nullable=True)    # Day of week, 0..6
     sched_dom = db.Column(db.SmallInteger(), nullable=True)    # Day of month 0..31
     sched_int = db.Column(db.SmallInteger(), nullable=True)    # Interval for every x D,W,M
@@ -546,7 +547,7 @@ def list_users():
         app_users = AppUser.query.order_by(AppUser.first_name).all()
         return render_template('list_users.html', app_users=app_users)
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return redirect(url_for('index'))
 
 
@@ -575,7 +576,7 @@ def list_tasklists():
         return render_template('list_tasklists.html', tasklists=tasklists)
     except Exception as e:
         flash("Quelque chose n'a pas fonctionné.")
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         abort(500)
 
 
@@ -599,7 +600,7 @@ def show_tasklist(list_id):
             return redirect(url_for('list_tasklists'))
     except Exception as e:
         flash("Quelque chose n'a pas fonctionné.")
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         abort(500)
 
 
@@ -711,7 +712,7 @@ def list_tasks():
         return render_template('todo.html')
     except Exception as e:
         flash("Quelque chose n'a pas fonctionné.")
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         abort(500)
 
 
@@ -873,7 +874,7 @@ def list_tags():
         return render_template('list_tags.html', tags=tags)
     except Exception as e:
         flash("Quelque chose n'a pas fonctionné.")
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         abort(500)
 
 
@@ -895,7 +896,7 @@ def show_tag(tag_id):
             return redirect(url_for('list_tags'))
     except Exception as e:
         flash("Quelque chose n'a pas fonctionné.")
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         abort(500)
 
 
@@ -1063,7 +1064,7 @@ def add_sched_one():
         sched_id = db_add_sched(task_id, sched_type, sched_start_dt, None, sched_start_dt, None, None, None)
         if sched_id:
             flash('La nouvelle cédule unique a été ajoutée.')
-            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+            if db_add_occur(sched_id):
                 flash('Une occurence de cette tâche a été ajoutée.')
             else:
                 flash('Une erreur de base de données est survenue.')
@@ -1094,10 +1095,10 @@ def add_sched_dly():
                 return render_template('add_sched_dly.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
-        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_start_dt, None, None, None)
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, None, None, None, None)
         if sched_id:
             flash('La nouvelle cédule quotidienne a été ajoutée.')
-            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+            if db_add_occur(sched_id):
                 flash('Une occurence de cette tâche ont été ajoutées.')
             else:
                 flash('Une erreur de base de données est survenue.')
@@ -1129,11 +1130,10 @@ def add_sched_wly():
                 return render_template('add_sched_wly.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
-        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_start_dt, sched_dow, None,
-                                None)
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, None, sched_dow, None, None)
         if sched_id:
             flash('La nouvelle cédule hebdomadaire a été ajoutée.')
-            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+            if db_add_occur(sched_id):
                 flash('Une occurence de cette tâche a été ajoutée.')
             else:
                 flash('Une erreur de base de données est survenue.')
@@ -1165,11 +1165,10 @@ def add_sched_mly():
                 return render_template('add_sched_mly.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
-        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_start_dt, None, sched_dom,
-                                None)
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, None, None, sched_dom, None)
         if sched_id:
             flash('La nouvelle cédule mensuelle a été ajoutée.')
-            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+            if db_add_occur(sched_id):
                 flash('Une occurence de cette tâche a été ajoutée.')
             else:
                 flash('Une erreur de base de données est survenue.')
@@ -1201,11 +1200,10 @@ def add_sched_xdy():
                 return render_template('add_sched_xdy.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
-        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_start_dt, None, None,
-                                sched_int)
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, None, None, None, sched_int)
         if sched_id:
             flash('La nouvelle cédule en interval de jours a été ajoutée.')
-            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+            if db_add_occur(sched_id):
                 flash('Une occurence de cette tâche a été ajoutée.')
             else:
                 flash('Une erreur de base de données est survenue.')
@@ -1238,11 +1236,10 @@ def add_sched_xwk():
                 return render_template('add_sched_xwk.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
-        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_start_dt, sched_dow, None,
-                                sched_int)
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, None, sched_dow, None, sched_int)
         if sched_id:
             flash('La nouvelle cédule en interval de semaines a été ajoutée.')
-            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+            if db_add_occur(sched_id):
                 flash('Une occurence de cette tâche a été ajoutée.')
             else:
                 flash('Une erreur de base de données est survenue.')
@@ -1275,11 +1272,10 @@ def add_sched_xmo():
                 return render_template('add_sched_xmo.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
-        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_start_dt, None, sched_dom,
-                                sched_int)
+        sched_id = db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, None, None, sched_dom, sched_int)
         if sched_id:
             flash('La nouvelle cédule en interval de mois a été ajoutée.')
-            if db_add_occur(sched_type, task_id, sched_id, sched_start_dt):
+            if db_add_occur(sched_id):
                 flash('Une occurence de cette tâche a été ajoutée.')
             else:
                 flash('Une erreur de base de données est survenue.')
@@ -1306,7 +1302,7 @@ def upd_sched_one(sched_id):
         sched_start_dt = form.sched_start_dt.data
         if db_upd_sched_one(sched_id, sched_start_dt):
             flash("La cédule a été modifiée.")
-            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
+            db_add_occur(sched_id, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1338,7 +1334,7 @@ def upd_sched_dly(sched_id):
             sched_end_dt = None
         if db_upd_sched_dly(sched_id, sched_start_dt, sched_end_dt):
             flash("La cédule a été modifiée.")
-            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
+            db_add_occur(sched_id, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1372,7 +1368,7 @@ def upd_sched_wly(sched_id):
             sched_end_dt = None
         if db_upd_sched_wly(sched_id, sched_start_dt, sched_end_dt, sched_dow):
             flash("La cédule a été modifiée.")
-            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
+            db_add_occur(sched_id, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1407,7 +1403,7 @@ def upd_sched_mly(sched_id):
             sched_end_dt = None
         if db_upd_sched_mly(sched_id, sched_start_dt, sched_end_dt, sched_dom):
             flash("La cédule a été modifiée.")
-            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
+            db_add_occur(sched_id, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1441,7 +1437,7 @@ def upd_sched_xdy(sched_id):
             sched_end_dt = None
         if db_upd_sched_xdy(sched_id, sched_start_dt, sched_end_dt, sched_int):
             flash("La cédule a été modifiée.")
-            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
+            db_add_occur(sched_id, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1477,7 +1473,7 @@ def upd_sched_xwk(sched_id):
             sched_end_dt = None
         if db_upd_sched_xwk(sched_id, sched_start_dt, sched_end_dt, sched_dow, sched_int):
             flash("La cédule a été modifiée.")
-            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
+            db_add_occur(sched_id, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1514,7 +1510,7 @@ def upd_sched_xmo(sched_id):
             sched_end_dt = None
         if db_upd_sched_xmo(sched_id, sched_start_dt, sched_end_dt, sched_dom, sched_int):
             flash("La cédule a été modifiée.")
-            db_add_occur(sched.sched_type, task_id, sched_id, sched_start_dt, update_mode='Y')
+            db_add_occur(sched_id, update_mode='Y')
         else:
             flash("Quelque chose n'a pas fonctionné.")
         return redirect(url_for('upd_task', task_id=task_id))
@@ -1564,7 +1560,7 @@ def list_occurs(sched_id):
         return render_template('list_occurs.html', occurs=occurs, task=task, task_status=task_status)
     except Exception as e:
         flash("Quelque chose n'a pas fonctionné.")
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         abort(500)
 
 
@@ -1574,12 +1570,32 @@ def set_occur_status(occur_id, status):
         return redirect(url_for('login'))
     # task_status = {'T': 'À Faire', 'D': 'Faite', 'C': 'Annulée', 'S': 'Sautée'}
     app.logger.debug('Entering set_occur_status')
-    if db_set_occ_status(occur_id, status):
-        flash("Le status a été changé.")
-        # todo: Créer l'occurence suivante
-        return redirect(url_for('list_tasks'))
-    else:
-        flash('Une erreur de base de données est survenue.')
+    try:
+        occ = db_occur_by_id(occur_id)
+        if occ:
+            sched = db_sched_by_id(occ.sched_id)
+            if sched:
+                if db_set_occ_status(occur_id, status):
+                    flash("Le status a été changé.")
+                    if sched.sched_type != 'O':
+                        if db_add_occur(occ.sched_id, update_mode='N'):
+                            flash("L'occurence suivante a été ajoutée.")
+                        else:
+                            flash('Une erreur de base de données est survenue.')
+                            abort(500)
+                    return redirect(url_for('list_tasks'))
+                else:
+                    flash('Une erreur de base de données est survenue.')
+                    abort(500)
+            else:
+                flash("L'info n'a pas pu être retrouvée.")
+                return redirect(url_for('list_tasks'))
+        else:
+            flash("L'info n'a pas pu être retrouvée.")
+            return redirect(url_for('list_tasks'))
+    except Exception as e:
+        flash("Quelque chose n'a pas fonctionné.")
+        app.logger.error('Error: ' + str(e))
         abort(500)
 
 
@@ -1613,7 +1629,7 @@ def db_add_user(first_name, last_name, user_email, user_pass):
         db.session.commit()
         return True
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
 
 
@@ -1624,7 +1640,7 @@ def db_act_user(user_id):
         db.session.commit()
         return True
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
 
 
@@ -1637,7 +1653,7 @@ def db_user_exists(user_email):
         else:
             return True
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
 
 
@@ -1646,7 +1662,7 @@ def db_user_by_id(user_id):
         u = AppUser.query.get(user_id)
         return u
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return None
 
 
@@ -1663,7 +1679,7 @@ def db_change_password(user_email, new_password):
             flash("Mot de passe changé.")
             return True
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         flash("Mot de passe inchangé. Une erreur interne s'est produite.")
         return False
 
@@ -1690,7 +1706,7 @@ def db_validate_user(user_email, password):
             flash("Mauvais mot de passe!")
             return False
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         flash("Connection impossible. Une erreur interne s'est produite.")
         return False
 
@@ -1705,7 +1721,7 @@ def db_tasklist_exists(list_name):
         else:
             return True
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
 
 
@@ -1714,7 +1730,7 @@ def db_tasklist_by_id(list_id):
         lst = TaskList.query.get(list_id)
         return lst
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return None
 
 
@@ -1726,7 +1742,7 @@ def db_add_tasklist(list_name, list_desc):
         db.session.add(tasklist)
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1742,7 +1758,7 @@ def db_upd_tasklist(list_id, list_name, list_desc):
         tasklist.audit_upd_ts = audit_upd_ts
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1753,7 +1769,7 @@ def db_del_tasklist(list_id):
         db.session.delete(tasklist)
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1766,7 +1782,7 @@ def db_tasklist_has_tasks(list_id):
         else:
             return False
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return None
 
 
@@ -1780,7 +1796,7 @@ def db_task_exists(task_name):
         else:
             return True
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
 
 
@@ -1789,7 +1805,7 @@ def db_task_by_id(task_id):
         t = Task.query.get(task_id)
         return t
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return None
 
 
@@ -1801,7 +1817,7 @@ def db_add_task(list_id, task_name, task_desc):
         db.session.add(task)
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1817,7 +1833,7 @@ def db_upd_task(task_id, task_name, task_desc):
         task.audit_upd_ts = audit_upd_ts
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1840,7 +1856,7 @@ def db_del_task(task_id):
         db.session.delete(task)
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1851,7 +1867,7 @@ def db_sched_by_id(sched_id):
         s = TaskSched.query.get(sched_id)
         return s
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return None
 
 
@@ -1865,7 +1881,7 @@ def db_add_sched(task_id, sched_type, sched_start_dt, sched_end_dt, sched_last_o
         db.session.add(sched)
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return sched.sched_id
 
@@ -1880,7 +1896,7 @@ def db_upd_sched_one(sched_id, sched_start_dt):
         sched.audit_upd_ts = audit_upd_ts
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1896,7 +1912,7 @@ def db_upd_sched_dly(sched_id, sched_start_dt, sched_end_dt):
         sched.audit_upd_ts = audit_upd_ts
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1913,7 +1929,7 @@ def db_upd_sched_wly(sched_id, sched_start_dt, sched_end_dt, sched_dow):
         sched.audit_upd_ts = audit_upd_ts
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1930,7 +1946,7 @@ def db_upd_sched_mly(sched_id, sched_start_dt, sched_end_dt, sched_dom):
         sched.audit_upd_ts = audit_upd_ts
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1947,7 +1963,7 @@ def db_upd_sched_xdy(sched_id, sched_start_dt, sched_end_dt, sched_int):
         sched.audit_upd_ts = audit_upd_ts
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1965,7 +1981,7 @@ def db_upd_sched_xwk(sched_id, sched_start_dt, sched_end_dt, sched_dow, sched_in
         sched.audit_upd_ts = audit_upd_ts
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1983,7 +1999,7 @@ def db_upd_sched_xmo(sched_id, sched_start_dt, sched_end_dt, sched_dom, sched_in
         sched.audit_upd_ts = audit_upd_ts
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -1996,57 +2012,65 @@ def db_del_sched(sched_id):
         db.session.delete(sched)
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
 
 # DB functions for TaskOccurence: exists, by_id, add, upd, del, others
-def db_add_occur(sched_type, task_id, sched_id, sched_dt, update_mode='N'):
+def db_occur_by_id(occur_id):
+    try:
+        o = TaskOccurence.query.get(occur_id)
+        return o
+    except Exception as e:
+        app.logger.error('Error: ' + str(e))
+        return None
+
+
+def db_add_occur(sched_id, update_mode='N'):
     app.logger.debug('Entering db_add_occur')
-    # In update_mode, delete the occurences with a status To_Do
-    if update_mode == 'Y':
-        try:
-            sched = db_sched_by_id(sched_id)
+    try:
+        sched = db_sched_by_id(sched_id)
+        if sched:
+            app.logger.debug('sched is found')
+            app.logger.debug('sched type: ' + sched.sched_type)
+        else:
+            app.logger.debug('sched is NOT found')
+
+        # In update_mode, delete the occurences with a status To_Do
+        if update_mode == 'Y':
             for occ in sched.occurences:
                 if occ.status == 'T':
                     db.session.delete(occ)
-        except Exception as e:
-            app.logger.error('DB Error' + str(e))
-            return False
+            occ_max = TaskOccurence.query.filter_by(sched_id=sched_id).order_by(desc(TaskOccurence.sched_dt)).first()
+            if occ_max:
+                app.logger.debug('Last occurence date:' + str(occ_max.sched_dt))
+                sched.sched_last_occ_dt = occ_max.sched_dt
+            else:
+                app.logger.debug('Last occurence date is set to null.')
+                sched.sched_last_occ_dt = None
 
-    if sched_type == 'O':
-        try:
-            sched = db_sched_by_id(sched_id)
-            sched.sched_last_occ_dt = sched_dt
-            occur = TaskOccurence(task_id, sched_id, sched_dt)
+        if sched.sched_type == 'O':
+            sched.sched_last_occ_dt = sched.sched_start_dt
+            occur = TaskOccurence(sched.task_id, sched_id, sched.sched_start_dt)
             db.session.add(occur)
             db.session.commit()
-        except Exception as e:
-            app.logger.error('DB Error' + str(e))
-            return False
-        return True
-    elif sched_type == 'd':
-        try:
-            sched = db_sched_by_id(sched_id)
-            if sched.sched_start_dt == sched.sched_last_occ_dt:
+
+        elif sched.sched_type == 'd':
+            if sched.sched_last_occ_dt is None:
                 sched_dt = sched.sched_start_dt
             else:
                 sched_dt = sched.sched_last_occ_dt + timedelta(days=1)
             if (sched.sched_end_dt is None) or (sched_dt <= sched.sched_end_dt):
-                app.logger.debug('Adding occurence: ' + str(task_id) + ', ' + str(sched_id) + ', ' + str(sched_dt))
-                occur = TaskOccurence(task_id, sched_id, sched_dt)
+                sched.sched_last_occ_dt = sched_dt
+                occur = TaskOccurence(sched.task_id, sched_id, sched_dt)
                 db.session.add(occur)
-            sched.sched_last_occ_dt = sched_dt
             db.session.commit()
-        except Exception as e:
-            app.logger.error('DB Error: ' + str(e))
-            return False
-        return True
-    elif sched_type == 'w':
-        try:
-            sched = db_sched_by_id(sched_id)
-            if sched.sched_start_dt == sched.sched_last_occ_dt:
+
+        elif sched.sched_type == 'w':
+            app.logger.debug('weekly')
+            if sched.sched_last_occ_dt is None:
+                app.logger.debug('last occ dt is none')
                 sched_dt = sched.sched_start_dt
                 sched_dow = sched.sched_dow
                 dow_start_dt = sched_dt.weekday()
@@ -2056,61 +2080,57 @@ def db_add_occur(sched_type, task_id, sched_id, sched_dt, update_mode='N'):
                     delta_days = 7 - (dow_start_dt - sched_dow)
                     sched_dt = sched_dt + timedelta(days=delta_days)
             else:
-                sched_dt = sched.sched_last_occ_dt + timedelta(days=7)
+                if update_mode == 'Y':
+                    app.logger.debug('Update mode')
+                    sched_dt = sched.sched_last_occ_dt
+                    app.logger.debug('sched_dt: ' + str(sched_dt))
+                    sched_dow = sched.sched_dow
+                    app.logger.debug('sched_dow: ' + str(sched_dow))
+                    dow_start_dt = sched_dt.weekday()
+                    if sched_dow > dow_start_dt:
+                        sched_dt = sched_dt + timedelta(days=sched_dow - dow_start_dt)
+                    elif sched_dow < dow_start_dt:
+                        delta_days = 7 - (dow_start_dt - sched_dow)
+                        sched_dt = sched_dt + timedelta(days=delta_days)
+                else:
+                    sched_dt = sched.sched_last_occ_dt + timedelta(days=7)
             if (sched.sched_end_dt is None) or (sched_dt <= sched.sched_end_dt):
-                occur = TaskOccurence(task_id, sched_id, sched_dt)
+                occur = TaskOccurence(sched.task_id, sched_id, sched_dt)
                 sched.sched_last_occ_dt = sched_dt
                 db.session.add(occur)
             db.session.commit()
-        except Exception as e:
-            app.logger.error('DB Error: ' + str(e))
-            return False
-        return True
-    elif sched_type == 'm':
-        try:
-            sched = db_sched_by_id(sched_id)
-            if sched.sched_start_dt == sched.sched_last_occ_dt:
+
+        elif sched.sched_type == 'm':
+            if sched.sched_last_occ_dt is None:
                 sched_dt = sched.sched_start_dt
             else:
                 temp_dt = sched.sched_last_occ_dt
                 days_in_month = monthrange(temp_dt.year, temp_dt.month)[1]
                 temp_dt = temp_dt + timedelta(days=(days_in_month - temp_dt.day + 1))  # First day of next month
-                days_in_next_month = monthrange(temp_dt.year, temp_dt.month)
+                days_in_next_month = monthrange(temp_dt.year, temp_dt.month)[1]
                 if sched.sched_dom > days_in_next_month:
                     sched_dt = temp_dt + timedelta(days=(days_in_next_month - 1))
                 else:
                     sched_dt = temp_dt + timedelta(days=(sched.sched_dom - 1))
             if (sched.sched_end_dt is None) or (sched_dt <= sched.sched_end_dt):
-                app.logger.debug('Adding occurence: ' + str(task_id) + ', ' + str(sched_id) + ', ' + str(sched_dt))
-                occur = TaskOccurence(task_id, sched_id, sched_dt)
+                occur = TaskOccurence(sched.task_id, sched_id, sched_dt)
                 sched.sched_last_occ_dt = sched_dt
                 db.session.add(occur)
             db.session.commit()
-        except Exception as e:
-            app.logger.error('DB Error: ' + str(e))
-            return False
-        return True
-    elif sched_type == 'D':
-        try:
-            sched = db_sched_by_id(sched_id)
-            if sched.sched_start_dt == sched.sched_last_occ_dt:
+
+        elif sched.sched_type == 'D':
+            if sched.sched_last_occ_dt is None:
                 sched_dt = sched.sched_start_dt
             else:
                 sched_dt = sched.sched_last_occ_dt + timedelta(days=sched.sched_int)
             if (sched.sched_end_dt is None) or (sched_dt <= sched.sched_end_dt):
-                app.logger.debug('Adding occurence: ' + str(task_id) + ', ' + str(sched_id) + ', ' + str(sched_dt))
-                occur = TaskOccurence(task_id, sched_id, sched_dt)
+                occur = TaskOccurence(sched.task_id, sched_id, sched_dt)
                 sched.sched_last_occ_dt = sched_dt
                 db.session.add(occur)
             db.session.commit()
-        except Exception as e:
-            app.logger.error('DB Error: ' + str(e))
-            return False
-        return True
-    elif sched_type == 'W':
-        try:
-            sched = db_sched_by_id(sched_id)
-            if sched.sched_start_dt == sched.sched_last_occ_dt:
+
+        elif sched.sched_type == 'W':
+            if sched.sched_last_occ_dt is None:
                 sched_dt = sched.sched_start_dt
                 sched_dow = sched.sched_dow
                 dow_start_dt = sched_dt.weekday()
@@ -2120,20 +2140,28 @@ def db_add_occur(sched_type, task_id, sched_id, sched_dt, update_mode='N'):
                     delta_days = 7 - (dow_start_dt - sched_dow)
                     sched_dt = sched_dt + timedelta(days=delta_days)
             else:
-                sched_dt = sched.sched_last_occ_dt + timedelta(days=(7 * sched.sched_int))
+                if update_mode == 'Y':
+                    app.logger.debug('Update mode')
+                    sched_dt = sched.sched_last_occ_dt
+                    app.logger.debug('sched_dt: ' + str(sched_dt))
+                    sched_dow = sched.sched_dow
+                    app.logger.debug('sched_dow: ' + str(sched_dow))
+                    dow_start_dt = sched_dt.weekday()
+                    if sched_dow > dow_start_dt:
+                        sched_dt = sched_dt + timedelta(days=sched_dow - dow_start_dt)
+                    elif sched_dow < dow_start_dt:
+                        delta_days = 7 - (dow_start_dt - sched_dow)
+                        sched_dt = sched_dt + timedelta(days=delta_days)
+                else:
+                    sched_dt = sched.sched_last_occ_dt + timedelta(days=(7 * sched.sched_int))
             if (sched.sched_end_dt is None) or (sched_dt <= sched.sched_end_dt):
-                occur = TaskOccurence(task_id, sched_id, sched_dt)
+                occur = TaskOccurence(sched.task_id, sched_id, sched_dt)
                 sched.sched_last_occ_dt = sched_dt
                 db.session.add(occur)
             db.session.commit()
-        except Exception as e:
-            app.logger.error('DB Error: ' + str(e))
-            return False
-        return True
-    elif sched_type == 'M':
-        try:
-            sched = db_sched_by_id(sched_id)
-            if sched.sched_start_dt == sched.sched_last_occ_dt:
+
+        elif sched.sched_type == 'M':
+            if sched.sched_last_occ_dt is None:
                 sched_dt = sched.sched_start_dt
             else:
                 temp_dt = sched.sched_last_occ_dt
@@ -2141,22 +2169,23 @@ def db_add_occur(sched_type, task_id, sched_id, sched_dt, update_mode='N'):
                 for _ in range(sched.sched_int):  # Repeat for the number of times in the interval
                     days_in_month = monthrange(temp_dt.year, temp_dt.month)[1]
                     temp_dt = temp_dt + timedelta(days=days_in_month)  # Go to the First day of next month
-                days_in_month = monthrange(temp_dt.year, temp_dt.month)
+                days_in_month = monthrange(temp_dt.year, temp_dt.month)[1]
                 if sched.sched_dom > days_in_month:
                     sched_dt = temp_dt + timedelta(days=(days_in_month - 1))
                 else:
                     sched_dt = temp_dt + timedelta(days=(sched.sched_dom - 1))
             if (sched.sched_end_dt is None) or (sched_dt <= sched.sched_end_dt):
-                occur = TaskOccurence(task_id, sched_id, sched_dt)
+                occur = TaskOccurence(sched.task_id, sched_id, sched_dt)
                 sched.sched_last_occ_dt = sched_dt
                 db.session.add(occur)
             db.session.commit()
-        except Exception as e:
-            app.logger.error('DB Error: ' + str(e))
+        else:
             return False
-        return True
-    else:
+
+    except Exception as e:
+        app.logger.error('DB Error: ' + str(e))
         return False
+    return True
 
 
 def db_set_occ_status(occur_id, status):
@@ -2172,7 +2201,7 @@ def db_set_occ_status(occur_id, status):
             occ.audit_upd_ts = audit_upd_ts
             db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -2187,7 +2216,7 @@ def db_asgn_exists(task_id, user_id):
         else:
             return True
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
 
 
@@ -2197,7 +2226,7 @@ def db_add_asgn(task_id, user_id):
         db.session.add(asgn)
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -2208,7 +2237,7 @@ def db_del_asgn(asgn_id):
         db.session.delete(asgn)
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -2223,7 +2252,7 @@ def db_tag_exists(tag_name):
         else:
             return True
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
 
 
@@ -2232,7 +2261,7 @@ def db_tag_by_id(tag_id):
         t = Tag.query.get(tag_id)
         return t
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return None
 
 
@@ -2244,7 +2273,7 @@ def db_add_tag(tag_name):
         db.session.add(tag)
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -2259,7 +2288,7 @@ def db_upd_tag(tag_id, tag_name):
         tag.audit_upd_ts = audit_upd_ts
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -2270,7 +2299,7 @@ def db_del_tag(tag_id):
         db.session.delete(tag)
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -2285,7 +2314,7 @@ def db_ttag_exists(task_id, tag_id):
         else:
             return True
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
 
 
@@ -2295,7 +2324,7 @@ def db_add_ttag(task_id, tag_id):
         db.session.add(t_tag)
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
@@ -2306,7 +2335,7 @@ def db_del_ttag(task_id, tag_id):
         db.session.delete(t_tag)
         db.session.commit()
     except Exception as e:
-        app.logger.error('DB Error' + str(e))
+        app.logger.error('Error: ' + str(e))
         return False
     return True
 
