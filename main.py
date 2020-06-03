@@ -689,8 +689,8 @@ def del_tasklist(list_id):
 
 # Views for Tasks
 # Ordre des vues: list, show, add, upd, del
-@app.route('/list_tasks')
-def list_tasks():
+@app.route('/list_tasks_for_me')
+def list_tasks_for_me():
     if not logged_in():
         return redirect(url_for('login'))
     try:
@@ -702,10 +702,11 @@ def list_tasks():
                 .join(TaskSched, Task.task_id == TaskSched.task_id)\
                 .join(TaskOccurence, TaskSched.sched_id == TaskOccurence.sched_id)\
                 .filter(AppUser.user_id == user_id, TaskOccurence.status == 'T')\
-                .add_columns(Task.task_id, Task.task_name, TaskSched.sched_type, TaskSched.sched_int,
+                .add_columns(Task.task_id, Task.task_name,
+                             TaskSched.sched_type, TaskSched.sched_int, TaskSched.sched_dow, TaskSched.sched_dom,
                              TaskOccurence.sched_dt, TaskOccurence.occur_id)\
                 .order_by(TaskOccurence.sched_dt)
-            return render_template('list_tasks.html', user=user, tasks=tasks, sched_types=sched_types)
+            return render_template('list_tasks_for_me.html', user=user, tasks=tasks, sched_types=sched_types, dow=dow)
         else:
             flash("Quelque chose n'a pas fonctionné.")
             abort(500)
@@ -715,6 +716,52 @@ def list_tasks():
         app.logger.error('Error: ' + str(e))
         abort(500)
 
+
+@app.route('/list_tasks_for_all')
+def list_tasks_for_all():
+    if not logged_in():
+        return redirect(url_for('login'))
+    try:
+        tasks = AppUser.query.join(Assignment, AppUser.user_id == Assignment.user_id)\
+            .join(Task, Assignment.task_id == Task.task_id)\
+            .join(TaskSched, Task.task_id == TaskSched.task_id)\
+            .join(TaskOccurence, TaskSched.sched_id == TaskOccurence.sched_id)\
+            .filter(TaskOccurence.status == 'T')\
+            .add_columns(AppUser.first_name,
+                         Task.task_id, Task.task_name,
+                         TaskSched.sched_type, TaskSched.sched_int, TaskSched.sched_dow, TaskSched.sched_dom,
+                         TaskOccurence.sched_dt, TaskOccurence.occur_id)\
+            .order_by(TaskOccurence.sched_dt, Task.task_name, TaskSched.sched_id, AppUser.first_name)
+        return render_template('list_tasks_for_all.html', tasks=tasks, sched_types=sched_types, dow=dow)
+    except Exception as e:
+        flash("Quelque chose n'a pas fonctionné.")
+        app.logger.error('Error: ' + str(e))
+        abort(500)
+
+
+@app.route('/list_tasks_by_tag/<int:tag_id>')
+def list_tasks_by_tag(tag_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    try:
+        session['tag_id'] = tag_id
+        tag = db_tag_by_id(tag_id)
+        tasks = AppUser.query.join(Assignment, AppUser.user_id == Assignment.user_id)\
+            .join(Task, Assignment.task_id == Task.task_id)\
+            .join(TaskTag, Task.task_id == TaskTag.task_id)\
+            .join(TaskSched, Task.task_id == TaskSched.task_id)\
+            .join(TaskOccurence, TaskSched.sched_id == TaskOccurence.sched_id)\
+            .filter(TaskTag.tag_id == tag_id, TaskOccurence.status == 'T')\
+            .add_columns(AppUser.first_name,
+                         Task.task_id, Task.task_name,
+                         TaskSched.sched_type, TaskSched.sched_int, TaskSched.sched_dow, TaskSched.sched_dom,
+                         TaskOccurence.sched_dt, TaskOccurence.occur_id)\
+            .order_by(TaskOccurence.sched_dt, Task.task_name, TaskSched.sched_id, AppUser.first_name)
+        return render_template('list_tasks_by_tag.html', tasks=tasks, tag=tag, sched_types=sched_types, dow=dow)
+    except Exception as e:
+        flash("Quelque chose n'a pas fonctionné.")
+        app.logger.error('Error: ' + str(e))
+        abort(500)
 
 @app.route('/add_task', methods=['GET', 'POST'])
 def add_task():
@@ -753,15 +800,23 @@ def upd_task(task_id):
     else:
         app.logger.debug('getting assignees')
         count_assignees = 0
+        assignees = []
         for a in task.assignees:
-            count_assignees += 1
+            asgn = {}
+            asgn['asgn_id'] = a.asgn_id
             u = AppUser.query.filter_by(user_id=a.user_id).first()
-            a.user_name = u.first_name + ' ' + u.last_name
+            asgn['user_name'] = u.first_name + ' ' + u.last_name
+            assignees.append(asgn)
+            count_assignees += 1
         count_tags = 0
+        tags = []
         for t_tag in task.tags:
+            tag = {}
+            tag['tag_id'] = t_tag.tag_id
+            qtag = Tag.query.filter_by(tag_id=t_tag.tag_id).first()
+            tag['tag_name'] = qtag.tag_name
+            tags.append(tag)
             count_tags += 1
-            tag = Tag.query.filter_by(tag_id=t_tag.tag_id).first()
-            t_tag.tag_name = tag.tag_name
         count_scheds = 0
         for _ in task.schedules:
             count_scheds += 1
@@ -785,7 +840,8 @@ def upd_task(task_id):
         form.task_name.data = task.task_name
         form.task_desc.data = task.task_desc
         return render_template("upd_task.html", form=form, list_id=list_id, task=task, dow=dow,
-                               count_assignees=count_assignees, count_tags=count_tags, count_scheds=count_scheds)
+                               assignees=assignees, count_assignees=count_assignees,
+                               tags=tags, count_tags=count_tags, count_scheds=count_scheds)
 
 
 @app.route('/del_task/<int:task_id>', methods=['GET', 'POST'])
@@ -1564,8 +1620,8 @@ def list_occurs(sched_id):
         abort(500)
 
 
-@app.route('/set_occur_status/<int:occur_id>/<string:status>')
-def set_occur_status(occur_id, status):
+@app.route('/set_occur_status/<int:occur_id>/<string:status>/<int:redir_to>')
+def set_occur_status(occur_id, status, redir_to):
     if not logged_in():
         return redirect(url_for('login'))
     # task_status = {'T': 'À Faire', 'D': 'Faite', 'C': 'Annulée', 'S': 'Sautée'}
@@ -1583,16 +1639,44 @@ def set_occur_status(occur_id, status):
                         else:
                             flash('Une erreur de base de données est survenue.')
                             abort(500)
-                    return redirect(url_for('list_tasks'))
+                    if redir_to == 1:
+                        return redirect(url_for('list_tasks_for_me'))
+                    elif redir_to == 2:
+                        return redirect(url_for('list_tasks_for_all'))
+                    elif redir_to == 3:
+                        tag_id = session['tag_id']
+                        return redirect(url_for('list_tasks_by_tag', tag_id=tag_id))
+                    else:
+                        flash("Je ne sais pas ou retourner.")
+                        abort(500)
                 else:
                     flash('Une erreur de base de données est survenue.')
                     abort(500)
             else:
                 flash("L'info n'a pas pu être retrouvée.")
-                return redirect(url_for('list_tasks'))
+                if redir_to == 1:
+                    return redirect(url_for('list_tasks_for_me'))
+                elif redir_to == 2:
+                    return redirect(url_for('list_tasks_for_all'))
+                elif redir_to == 3:
+                    tag_id = session['tag_id']
+                    return redirect(url_for('list_tasks_by_tag', tag_id=tag_id))
+                else:
+                    flash("Je ne sais pas ou retourner.")
+                    abort(500)
         else:
             flash("L'info n'a pas pu être retrouvée.")
-            return redirect(url_for('list_tasks'))
+            if redir_to == 1:
+                return redirect(url_for('list_tasks_for_me'))
+            elif redir_to == 2:
+                return redirect(url_for('list_tasks_for_all'))
+            elif redir_to == 3:
+                tag_id = session['tag_id']
+                return redirect(url_for('list_tasks_by_tag', tag_id=tag_id))
+            else:
+                flash("Je ne sais pas ou retourner.")
+                abort(500)
+
     except Exception as e:
         flash("Quelque chose n'a pas fonctionné.")
         app.logger.error('Error: ' + str(e))

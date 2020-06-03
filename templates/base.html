@@ -19,6 +19,12 @@
       <ul class="nav navbar-nav">
         <li><a href="{{ url_for('index') }}">Acceuil</a></li>
         {% if session['user_email'] %}
+          <li class="dropdown">
+            <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="true"> <span class="nav-label">À Faire</span> <span class="caret"></span></a>
+            <ul class="dropdown-menu">
+                <li><a href="{{ url_for('list_tasks_for_me') }}">par moi</a></li>
+                <li><a href="{{ url_for('list_tasks_for_all') }}">par tous</a></li>
+            </ul>
           <li><a href="{{ url_for('list_tasklists') }}">Listes</a></li>
           <li><a href="{{ url_for('list_tags') }}">Étiquettes</a></li>
           <li><a href="{{ url_for('list_users') }}">Usagers</a></li>

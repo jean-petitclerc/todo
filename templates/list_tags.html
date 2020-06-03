@@ -14,6 +14,7 @@
                     <th>Créé le</th>
                     <th class="text-center">Modifier</th>
                     <th class="text-center">Supprimer</th>
+                    <th class="text-center">Tâches</th>
                 </tr>
             </thead>
             <tbody>
@@ -29,6 +30,9 @@
                         <td class="text-center"><a href="{{ url_for('del_tag', tag_id=tag['tag_id']) }}"
                             class="btn btn-danger btn-xs" data-title="Supprimer">
                             <span class="glyphicon glyphicon-trash"></span></a></td>
+                        <td class="text-center"><a href="{{ url_for('list_tasks_by_tag', tag_id=tag['tag_id']) }}"
+                            class="btn btn-success btn-xs" data-title="Tâches">
+                            <span class="glyphicon glyphicon-list"></span></a></td>
                     </tr>
                 {% endfor %}
             </tbody>

@@ -6,10 +6,11 @@
             <h1>Allo {{ user }}!</h1>
         </div>
         <ul>
+           <li><a href="{{ url_for('list_tasks_for_me') }}">À Faire par moi</a></li>
+           <li><a href="{{ url_for('list_tasks_for_all') }}">À Faire par tous</a></li>
            <li><a href="{{ url_for('list_tasklists') }}">Listes de Tâches</a></li>
            <li><a href="{{ url_for('list_tags') }}">Liste des Étiquettes</a></li>
            <li><a href="{{ url_for('list_users') }}">Liste des Usagers</a></li>
-           <li><a href="{{ url_for('list_tasks') }}">Ta Liste de Tâches à Faire</a></li>
         </ul>
     {% else %}
         <div class="page-header">

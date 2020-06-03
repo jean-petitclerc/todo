@@ -45,7 +45,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for asgn in task.assignees %}
+                {% for asgn in assignees %}
                     <tr>
                         <td>{{ asgn['user_name'] }}</td>
                         <td class="text-center">
@@ -222,11 +222,11 @@
                 </tr>
             </thead>
             <tbody>
-                {% for t_tag in task.tags %}
+                {% for tag in tags %}
                     <tr>
-                        <td>{{ t_tag['tag_name'] }}</td>
+                        <td>{{ tag['tag_name'] }}</td>
                         <td class="text-center">
-                            <a href="{{ url_for('del_ttag', tag_id=t_tag.tag_id, redir_to=2) }}"
+                            <a href="{{ url_for('del_ttag', tag_id=tag.tag_id, redir_to=2) }}"
                                class="btn btn-danger btn-xs" data-title="Enlever">
                                <span class="glyphicon glyphicon-minus"></span>
                             </a>

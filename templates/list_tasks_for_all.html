@@ -2,7 +2,7 @@
 {% block page_content %}
 <div class="container">
     <div class="page-header">
-        <h1>Liste des Tâches pour {{ user.first_name }}</h1>
+        <h1>Liste des Tâches pour tout le monde</h1>
     </div>
     <p>
         {% if tasks %}
@@ -11,6 +11,7 @@
                 <tr>
                     <th>Tâche</th>
                     <th>Cédule</th>
+                    <th>Pour</th>
                     <th>Date</th>
                     <th class="text-center">Compléter</th>
                     <th class="text-center">Sauter</th>
@@ -22,24 +23,29 @@
                         <td>
                             <a href="{{ url_for('upd_task', task_id=task.task_id) }}">{{ task.task_name }}</a>
                         </td>
-                        {% if task.sched_type == 'D' %}
+                        {% if task.sched_type == 'w' %}
+                            <td>Hebdomadaire, le {{ dow[task.sched_dow] }}</td>
+                        {% elif task.sched_type == 'm' %}
+                            <td>Mensuelle, le jour {{ task.sched_dom }} du mois</td>
+                        {% elif task.sched_type == 'D' %}
                             <td>À chaque {{ task.sched_int }} jours</td>
                         {% elif task.sched_type == 'W' %}
-                            <td>À chaque {{ task.sched_int }} semaines</td>
+                            <td>À chaque {{ task.sched_int }} semaines, le {{ dow[task.sched_dow] }}</td>
                         {% elif task.sched_type == 'M' %}
-                            <td>À chaque {{ task.sched_int }} mois</td>
+                            <td>À chaque {{ task.sched_int }} mois, le jour {{ task.sched_dom }} du mois</td>
                         {% else %}
                             <td>{{ sched_types[task.sched_type] }}</td>
                         {% endif %}
+                        <td>{{ task.first_name }}</td>
                         <td>{{ task.sched_dt }}</td>
                         <td class="text-center">
-                            <a href="{{ url_for('set_occur_status', occur_id=task.occur_id, status='D') }}"
+                            <a href="{{ url_for('set_occur_status', occur_id=task.occur_id, status='D', redir_to=2) }}"
                                class="btn btn-success btn-xs" data-title="Compléter">
                                <span class="glyphicon glyphicon-ok"></span>
                             </a>
                         </td>
                         <td class="text-center">
-                            <a href="{{ url_for('set_occur_status', occur_id=task.occur_id, status='S') }}"
+                            <a href="{{ url_for('set_occur_status', occur_id=task.occur_id, status='S', redir_to=2) }}"
                                class="btn btn-warning btn-xs" data-title="Sauter">
                                <span class="glyphicon glyphicon-step-forward"></span>
                             </a>
