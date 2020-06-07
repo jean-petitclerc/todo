@@ -13,8 +13,6 @@
                     <th>Cédule</th>
                     <th>Pour</th>
                     <th>Date</th>
-                    <th class="text-center">Compléter</th>
-                    <th class="text-center">Sauter</th>
                 </tr>
             </thead>
             <tbody>
@@ -38,18 +36,6 @@
                         {% endif %}
                         <td>{{ task.first_name }}</td>
                         <td>{{ task.sched_dt }}</td>
-                        <td class="text-center">
-                            <a href="{{ url_for('set_occur_status', occur_id=task.occur_id, status='D', redir_to=2) }}"
-                               class="btn btn-success btn-xs" data-title="Compléter">
-                               <span class="glyphicon glyphicon-ok"></span>
-                            </a>
-                        </td>
-                        <td class="text-center">
-                            <a href="{{ url_for('set_occur_status', occur_id=task.occur_id, status='S', redir_to=2) }}"
-                               class="btn btn-warning btn-xs" data-title="Sauter">
-                               <span class="glyphicon glyphicon-step-forward"></span>
-                            </a>
-                        </td>
                     </tr>
                 {% endfor %}
             </tbody>

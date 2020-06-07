@@ -799,6 +799,8 @@ def upd_task(task_id):
         return redirect(url_for('upd_tasklist', list_id=list_id))
     else:
         app.logger.debug('getting assignees')
+        list_id = task.list_id
+        session['list_id'] = list_id
         count_assignees = 0
         assignees = []
         for a in task.assignees:

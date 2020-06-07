@@ -1,9 +1,10 @@
+Flask~=1.1.2
+Werkzeug~=1.0.1
+WTForms~=2.3.1
 flask-sqlalchemy
 psycopg2
 flask-script
 flask-bootstrap
 flask-wtf
+email-validator
 
-Flask~=1.1.1
-Werkzeug~=1.0.0
-WTForms~=2.3.1
