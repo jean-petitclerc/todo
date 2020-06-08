@@ -791,15 +791,12 @@ def add_task():
 def upd_task(task_id):
     if not logged_in():
         return redirect(url_for('login'))
-    list_id = session.get('list_id')
+    list_id = session['list_id']
     session['task_id'] = task_id
     task = db_task_by_id(task_id)
     if task is None:
         flash("L'information n'a pas pu être retrouvée.")
-        if list_id is None:
-            return redirect(url_for('list_tasklists'))
-        else:
-            return redirect(url_for('upd_tasklist', list_id=list_id))
+        return redirect(url_for('upd_tasklist', list_id=list_id))
     else:
         app.logger.debug('getting assignees')
         list_id = task.list_id
