@@ -739,6 +739,67 @@ def list_tasks_for_all():
         abort(500)
 
 
+@app.route('/list_tasks_not_assigned')
+def list_tasks_not_assigned():
+    if not logged_in():
+        return redirect(url_for('login'))
+    try:
+        tasks = Task.query.join(TaskList, Task.list_id == TaskList.list_id)\
+            .add_columns(TaskList.list_name, Task.task_id, Task.task_name)\
+            .order_by(TaskList.list_name, Task.task_name)
+        l_tasks = []
+        for task in tasks:
+            assignee = Assignment.query.filter_by(task_id=task.task_id).first()
+            if assignee is None:
+                l_tasks.append(task)
+        return render_template('list_tasks_not_assigned.html', tasks=l_tasks)
+    except Exception as e:
+        flash("Quelque chose n'a pas fonctionné.")
+        app.logger.error('Error: ' + str(e))
+        abort(500)
+
+
+@app.route('/list_tasks_no_sched')
+def list_tasks_no_sched():
+    if not logged_in():
+        return redirect(url_for('login'))
+    try:
+        tasks = Task.query.join(TaskList, Task.list_id == TaskList.list_id)\
+            .add_columns(TaskList.list_name, Task.task_id, Task.task_name)\
+            .order_by(TaskList.list_name, Task.task_name)
+        l_tasks = []
+        for task in tasks:
+            sched = TaskSched.query.filter_by(task_id=task.task_id).first()
+            if sched is None:
+                l_tasks.append(task)
+        return render_template('list_tasks_no_sched.html', tasks=l_tasks)
+    except Exception as e:
+        flash("Quelque chose n'a pas fonctionné.")
+        app.logger.error('Error: ' + str(e))
+        abort(500)
+
+
+@app.route('/list_tasks_inactive')
+def list_tasks_inactive():
+    if not logged_in():
+        return redirect(url_for('login'))
+    try:
+        tasks = Task.query.join(TaskList, Task.list_id == TaskList.list_id)\
+            .add_columns(TaskList.list_name, Task.task_id, Task.task_name)\
+            .order_by(TaskList.list_name, Task.task_name)
+        l_tasks = []
+        for task in tasks:
+            inactive = True
+            occ = TaskOccurence.query.filter_by(task_id=task.task_id, status='T').first()
+            if occ is None:
+                l_tasks.append(task)
+        return render_template('list_tasks_inactive.html', tasks=l_tasks)
+    except Exception as e:
+        flash("Quelque chose n'a pas fonctionné.")
+        app.logger.error('Error: ' + str(e))
+        abort(500)
+
+
 @app.route('/list_tasks_by_tag/<int:tag_id>')
 def list_tasks_by_tag(tag_id):
     if not logged_in():
