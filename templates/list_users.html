@@ -13,7 +13,10 @@
                     <th>Nom</th>
                     <th>Courriel</th>
                     <th class="text-center">Activé</th>
-                    <th class="text-center">Activer</th>
+                    {% if admin_user %}
+                        <th class="text-center">Activer/Désactiver</th>
+                        <th class="text-center">Supprimer</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -24,12 +27,37 @@
                         <td>{{ user['user_email'] }}</td>
                         {% if user.activated_ts %}
                             <td class="text-center">Oui</td>
-                            <td class="text-center">N/A</td>
+                            {% if user['user_email'] == admin_user['user_email'] %}
+                                <td class="text-center">N/A</td>
+                            {% else %}
+                                {% if admin_user %}
+                                    <td class="text-center"><a href="{{ url_for('inact_user', user_id=user['user_id']) }}"
+                                        class="btn btn-warning btn-xs" data-title="Désactiver"><span
+                                        class="glyphicon glyphicon-remove"></span></a></td>
+                                {% endif %}
+                            {% endif %}
                         {% else %}
                             <td class="text-center">Non</td>
-                            <td class="text-center"><a href="{{ url_for('act_user', user_id=user['user_id']) }}"
-                                class="btn btn-primary btn-xs" data-title="Modifier"><span
-                                class="glyphicon glyphicon-ok"></span></a></td>
+                            {% if user['user_email'] == admin_user['user_email'] %}
+                                <td class="text-center">N/A</td>
+                            {% else %}
+                                {% if admin_user %}
+                                    <td class="text-center"><a href="{{ url_for('act_user', user_id=user['user_id']) }}"
+                                    class="btn btn-primary btn-xs" data-title="Activer"><span
+                                    class="glyphicon glyphicon-ok"></span></a></td>
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
+                        {% if admin_user %}
+                            {% if user['user_email'] == admin_user['user_email'] %}
+                                <td class="text-center">N/A</td>
+                            {% else %}
+                                {% if admin_user %}
+                                    <td class="text-center"><a href="{{ url_for('del_user', user_id=user['user_id']) }}"
+                                    class="btn btn-danger btn-xs" data-title="Supprimer"><span
+                                    class="glyphicon glyphicon-trash"></span></a></td>
+                                {% endif %}
+                            {% endif %}
                         {% endif %}
                     </tr>
                 {% endfor %}
