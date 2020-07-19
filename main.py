@@ -58,6 +58,7 @@ class AppUser(db.Model):
     activated_ts = db.Column(db.DateTime(), nullable=True)
     audit_crt_ts = db.Column(db.DateTime(), nullable=False)
     audit_upd_ts = db.Column(db.DateTime(), nullable=True)
+    user_role = db.Column(db.String(10), nullable=False, default='Régulier')
     tasks = db.relationship('Assignment', backref='tapp_user', lazy='dynamic')
 
     def __init__(self, first_name, last_name, user_email, user_pass, audit_crt_ts):
@@ -527,11 +528,11 @@ def register():
         user_email = request.form['email']
         user_pass = generate_password_hash(request.form['password_1'])
         if db_user_exists(user_email):
-            flash('Cet usager existe déjà. Veuillez vous connecter.')
+            flash('Cet utilisateur existe déjà. Veuillez vous connecter.')
             return redirect(url_for('login'))
         else:
             if db_add_user(first_name, last_name, user_email, user_pass):
-                flash('Vous pourrez vous connecter quand votre usager sera activé.')
+                flash('Vous pourrez vous connecter quand votre utilisateur sera activé.')
                 return redirect(url_for('login'))
             else:
                 flash('Une erreur de base de données est survenue.')
@@ -545,7 +546,7 @@ def list_users():
         return redirect(url_for('login'))
     try:
         user_id = session.get('user_id')
-        admin_user = AppUser.query.filter_by(user_id=user_id, user_email=app.config.get('ADMIN_EMAILID')).first()
+        admin_user = db_user_is_admin(user_id)
         app_users = AppUser.query.order_by(AppUser.first_name).all()
         return render_template('list_users.html', app_users=app_users, admin_user=admin_user)
     except Exception as e:
@@ -557,10 +558,14 @@ def list_users():
 def act_user(user_id):
     if not logged_in():
         return redirect(url_for('login'))
-    if db_upd_user_status(user_id, 'A'):
-        flash("L'utilisateur est activé.")
+    cur_user_id = session.get('user_id')
+    if db_user_is_admin(cur_user_id):
+        if db_upd_user_status(user_id, 'A'):
+            flash("L'utilisateur est activé.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
     else:
-        flash("Quelque chose n'a pas fonctionné.")
+        flash("Vous n'êtes pas autorisé à changer le status d'un utilisateur.")
     return redirect(url_for('list_users'))
 
 
@@ -568,10 +573,44 @@ def act_user(user_id):
 def inact_user(user_id):
     if not logged_in():
         return redirect(url_for('login'))
-    if db_upd_user_status(user_id, 'D'):
-        flash("L'utilisateur est désactivé.")
+    cur_user_id = session.get('user_id')
+    if db_user_is_admin(cur_user_id):
+        if db_upd_user_status(user_id, 'D'):
+            flash("L'utilisateur est désactivé.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
     else:
-        flash("Quelque chose n'a pas fonctionné.")
+        flash("Vous n'êtes pas autorisé à changer le status d'un utilisateur.")
+    return redirect(url_for('list_users'))
+
+
+@app.route('/set_user_admin/<int:user_id>', methods=['GET', 'POST'])
+def set_user_admin(user_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    cur_user_id = session.get('user_id')
+    if db_user_is_admin(cur_user_id):
+        if db_upd_user_role(user_id, 'A'):
+            flash("L'utilisateur est maintenant administrateur.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+    else:
+        flash("Vous n'êtes pas autorisé à changer le rôle d'un utilisateur.")
+    return redirect(url_for('list_users'))
+
+
+@app.route('/set_user_regular/<int:user_id>', methods=['GET', 'POST'])
+def set_user_regular(user_id):
+    if not logged_in():
+        return redirect(url_for('login'))
+    cur_user_id = session.get('user_id')
+    if db_user_is_admin(cur_user_id):
+        if db_upd_user_role(user_id, 'R'):
+            flash("L'utilisateur est maintenant un utilisateur régulier.")
+        else:
+            flash("Quelque chose n'a pas fonctionné.")
+    else:
+        flash("Vous n'êtes pas autorisé à changer le rôle d'un utilisateur.")
     return redirect(url_for('list_users'))
 
 
@@ -579,22 +618,25 @@ def inact_user(user_id):
 def del_user(user_id):
     if not logged_in():
         return redirect(url_for('login'))
-    form = DelEntityForm()
-    if form.validate_on_submit():
-        app.logger.debug('Deleting a user')
-        # if db_del_user(user_id):
-        #    flash("L'utilisateur a été effacé.")
-        #else:
-        #    flash("Quelque chose n'a pas fonctionné.")
-        flash("Cette fonction n'est pas encore implantée. ")
-        return redirect(url_for('list_users'))
-    else:
-        user = db_user_by_id(user_id)
-        if user:
-            return render_template('del_user.html', form=form, user=user)
+    cur_user_id = session.get('user_id')
+    if db_user_is_admin(cur_user_id):
+        form = DelEntityForm()
+        if form.validate_on_submit():
+            app.logger.debug('Deleting a user')
+            # if db_del_user(user_id):
+            #    flash("L'utilisateur a été effacé.")
+            # else:
+            #    flash("Quelque chose n'a pas fonctionné.")
+            flash("Cette fonction n'est pas encore implantée. ")
         else:
-            flash("L'information n'a pas pu être retrouvée.")
-            return redirect(url_for('list_users'))
+            user = db_user_by_id(user_id)
+            if user:
+                return render_template('del_user.html', form=form, user=user)
+            else:
+                flash("L'information n'a pas pu être retrouvée.")
+    else:
+        flash("Vous n'êtes pas autorisé à supprimer un utilisateur.")
+    return redirect(url_for('list_users'))
 
 
 # Views for Lists of Tasks
@@ -1807,6 +1849,9 @@ def db_add_user(first_name, last_name, user_email, user_pass):
         user = AppUser(first_name, last_name, user_email, user_pass, audit_crt_ts)
         if user_email == app.config.get('ADMIN_EMAILID'):
             user.activated_ts = datetime.now()
+            user.user_role = 'SuperAdmin'
+        else:
+            user.user_role = 'Régulier'
         db.session.add(user)
         db.session.commit()
         return True
@@ -1829,6 +1874,20 @@ def db_upd_user_status(user_id, status):
         return False
 
 
+def db_upd_user_role(user_id, user_role):
+    try:
+        user = AppUser.query.get(user_id)
+        if user_role == 'A':
+            user.user_role = 'Admin'
+        else:
+            user.user_role = 'Régulier'
+        db.session.commit()
+        return True
+    except Exception as e:
+        app.logger.error('Error: ' + str(e))
+        return False
+
+
 def db_user_exists(user_email):
     app.logger.debug('Entering user_exists with: ' + user_email)
     try:
@@ -1837,6 +1896,22 @@ def db_user_exists(user_email):
             return False
         else:
             return True
+    except Exception as e:
+        app.logger.error('Error: ' + str(e))
+        return False
+
+
+def db_user_is_admin(user_id):
+    app.logger.debug('Entering db_user_is_admin with: ' + str(user_id))
+    try:
+        user = AppUser.query.get(user_id)
+        if user is None:
+            return False
+        else:
+            if user.user_role in ['Admin', 'SuperAdmin']:
+                return True
+            else:
+                return False
     except Exception as e:
         app.logger.error('Error: ' + str(e))
         return False
@@ -1855,7 +1930,7 @@ def db_change_password(user_email, new_password):
     try:
         user = AppUser.query.filter_by(user_email=user_email).first()
         if user is None:
-            flash("Mot de passe inchangé. L'usager n'a pas été retrouvé.")
+            flash("Mot de passe inchangé. L'utilisateur n'a pas été retrouvé.")
             return False
         else:
             user.user_pass = generate_password_hash(new_password)
@@ -1874,11 +1949,11 @@ def db_validate_user(user_email, password):
     try:
         user = AppUser.query.filter_by(user_email=user_email).first()
         if user is None:
-            flash("L'usager n'existe pas.")
+            flash("L'utilisateur n'existe pas.")
             return False
 
         if not user.activated_ts:
-            flash("L'usager n'est pas activé.")
+            flash("L'utilisateur n'est pas activé.")
             return False
 
         if check_password_hash(user.user_pass, password):

@@ -12,9 +12,11 @@
                     <th>Prénom</th>
                     <th>Nom</th>
                     <th>Courriel</th>
+                    <th>Rôle</th>
                     <th class="text-center">Activé</th>
                     {% if admin_user %}
                         <th class="text-center">Activer/Désactiver</th>
+                        <th class="text-center">Admin/Régulier</th>
                         <th class="text-center">Supprimer</th>
                     {% endif %}
                 </tr>
@@ -25,38 +27,39 @@
                         <td>{{ user['first_name'] }}</td>
                         <td>{{ user['last_name'] }}</td>
                         <td>{{ user['user_email'] }}</td>
+                        <td>{{ user['user_role'] }}</td>
                         {% if user.activated_ts %}
                             <td class="text-center">Oui</td>
-                            {% if user['user_email'] == admin_user['user_email'] %}
-                                <td class="text-center">N/A</td>
-                            {% else %}
-                                {% if admin_user %}
-                                    <td class="text-center"><a href="{{ url_for('inact_user', user_id=user['user_id']) }}"
-                                        class="btn btn-warning btn-xs" data-title="Désactiver"><span
-                                        class="glyphicon glyphicon-remove"></span></a></td>
-                                {% endif %}
-                            {% endif %}
                         {% else %}
                             <td class="text-center">Non</td>
-                            {% if user['user_email'] == admin_user['user_email'] %}
-                                <td class="text-center">N/A</td>
-                            {% else %}
-                                {% if admin_user %}
-                                    <td class="text-center"><a href="{{ url_for('act_user', user_id=user['user_id']) }}"
-                                    class="btn btn-primary btn-xs" data-title="Activer"><span
-                                    class="glyphicon glyphicon-ok"></span></a></td>
-                                {% endif %}
-                            {% endif %}
                         {% endif %}
                         {% if admin_user %}
-                            {% if user['user_email'] == admin_user['user_email'] %}
+                            {% if user.user_role == 'SuperAdmin' %}
+                                <td class="text-center">N/A</td>
+                                <td class="text-center">N/A</td>
                                 <td class="text-center">N/A</td>
                             {% else %}
-                                {% if admin_user %}
-                                    <td class="text-center"><a href="{{ url_for('del_user', user_id=user['user_id']) }}"
+                                {% if user.activated_ts %}
+                                        <td class="text-center"><a href="{{ url_for('inact_user', user_id=user['user_id']) }}"
+                                            class="btn btn-danger btn-xs" data-title="Désactiver"><span
+                                            class="glyphicon glyphicon-remove"></span></a></td>
+                                {% else %}
+                                    <td class="text-center"><a href="{{ url_for('act_user', user_id=user['user_id']) }}"
+                                        class="btn btn-success btn-xs" data-title="Désactiver"><span
+                                        class="glyphicon glyphicon-ok"></span></a></td>
+                                {% endif %}
+                                {% if user.user_role == 'Admin' %}
+                                    <td class="text-center"><a href="{{ url_for('set_user_regular', user_id=user['user_id']) }}"
+                                        class="btn btn-info btn-xs" data-title="Changer pour régulier"><span
+                                        class="glyphicon glyphicon-pawn"></span></a></td>
+                                {% else %}
+                                    <td class="text-center"><a href="{{ url_for('set_user_admin', user_id=user['user_id']) }}"
+                                        class="btn btn-info btn-xs" data-title="Changer pour admin"><span
+                                        class="glyphicon glyphicon-king"></span></a></td>
+                                {% endif %}
+                                <td class="text-center"><a href="{{ url_for('del_user', user_id=user['user_id']) }}"
                                     class="btn btn-danger btn-xs" data-title="Supprimer"><span
                                     class="glyphicon glyphicon-trash"></span></a></td>
-                                {% endif %}
                             {% endif %}
                         {% endif %}
                     </tr>
