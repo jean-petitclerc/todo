@@ -1256,7 +1256,8 @@ def add_sched_one():
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
         sched_type = 'O'
-        sched_start_dt = request.form['sched_start_dt']
+        #sched_start_dt = datetime.strptime(request.form['sched_start_dt'], '%Y-%m-%d')
+        sched_start_dt = form.sched_start_dt.data
         sched_id = db_add_sched(task_id, sched_type, sched_start_dt, None, sched_start_dt, None, None, None)
         if sched_id:
             flash('La nouvelle cédule unique a été ajoutée.')
@@ -1282,12 +1283,12 @@ def add_sched_dly():
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
         sched_type = 'd'
-        sched_start_dt = request.form['sched_start_dt']
-        sched_end_dt = request.form['sched_end_dt']
+        sched_start_dt = form.sched_start_dt.data
+        sched_end_dt = form.sched_end_dt.data
         if sched_end_dt:
             if sched_start_dt > sched_end_dt:
-                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' +
-                      sched_start_dt + ').')
+                flash('La date de fin (' + str(sched_end_dt) + ') doit être après la date de début (' +
+                      str(sched_start_dt) + ').')
                 return render_template('add_sched_dly.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
@@ -1316,13 +1317,13 @@ def add_sched_wly():
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
         sched_type = 'w'
-        sched_start_dt = request.form['sched_start_dt']
-        sched_end_dt = request.form['sched_end_dt']
+        sched_start_dt = form.sched_start_dt.data
+        sched_end_dt = form.sched_end_dt.data
         sched_dow = request.form['sched_dow']
         if sched_end_dt:
             if sched_start_dt > sched_end_dt:
-                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' +
-                      sched_start_dt + ').')
+                flash('La date de fin (' + str(sched_end_dt) + ') doit être après la date de début (' +
+                      str(sched_start_dt) + ').')
                 return render_template('add_sched_wly.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
@@ -1351,13 +1352,13 @@ def add_sched_mly():
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
         sched_type = 'm'
-        sched_start_dt = request.form['sched_start_dt']
-        sched_end_dt = request.form['sched_end_dt']
-        sched_dom = sched_start_dt[8:]
+        sched_start_dt = form.sched_start_dt.data
+        sched_end_dt = form.sched_end_dt.data
+        sched_dom = sched_start_dt.day
         if sched_end_dt:
             if sched_start_dt > sched_end_dt:
-                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' +
-                      sched_start_dt + ').')
+                flash('La date de fin (' + str(sched_end_dt) + ') doit être après la date de début (' +
+                      str(sched_start_dt) + ').')
                 return render_template('add_sched_mly.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
@@ -1386,13 +1387,13 @@ def add_sched_xdy():
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
         sched_type = 'D'
-        sched_start_dt = request.form['sched_start_dt']
-        sched_end_dt = request.form['sched_end_dt']
+        sched_start_dt = form.sched_start_dt.data
+        sched_end_dt = form.sched_end_dt.data
         sched_int = request.form['sched_int']
         if sched_end_dt:
             if sched_start_dt > sched_end_dt:
-                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' +
-                      sched_start_dt + ').')
+                flash('La date de fin (' + str(sched_end_dt) + ') doit être après la date de début (' +
+                      str(sched_start_dt) + ').')
                 return render_template('add_sched_xdy.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
@@ -1421,14 +1422,14 @@ def add_sched_xwk():
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
         sched_type = 'W'
-        sched_start_dt = request.form['sched_start_dt']
-        sched_end_dt = request.form['sched_end_dt']
+        sched_start_dt = form.sched_start_dt.data
+        sched_end_dt = form.sched_end_dt.data
         sched_dow = request.form['sched_dow']
         sched_int = request.form['sched_int']
         if sched_end_dt:
             if sched_start_dt > sched_end_dt:
-                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' +
-                      sched_start_dt + ').')
+                flash('La date de fin (' + str(sched_end_dt) + ') doit être après la date de début (' +
+                      str(sched_start_dt) + ').')
                 return render_template('add_sched_xwk.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
@@ -1457,14 +1458,14 @@ def add_sched_xmo():
     if form.validate_on_submit():
         app.logger.debug('Inserting a new schedule')
         sched_type = 'M'
-        sched_start_dt = request.form['sched_start_dt']
-        sched_end_dt = request.form['sched_end_dt']
-        sched_dom = sched_start_dt[8:]
+        sched_start_dt = form.sched_start_dt.data
+        sched_end_dt = form.sched_end_dt.data
+        sched_dom = sched_start_dt.day
         sched_int = request.form['sched_int']
         if sched_end_dt:
             if sched_start_dt > sched_end_dt:
-                flash('La date de fin (' + sched_end_dt + ') doit être après la date de début (' +
-                      sched_start_dt + ').')
+                flash('La date de fin (' + str(sched_end_dt) + ') doit être après la date de début (' +
+                      str(sched_start_dt) + ').')
                 return render_template('add_sched_xmo.html', form=form, task_id=task_id)
         else:
             sched_end_dt = None
