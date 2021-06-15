@@ -1956,7 +1956,7 @@ def db_validate_user(user_email, password):
         if not user.activated_ts:
             flash("L'utilisateur n'est pas activé.")
             return False
-
+#        return True
         if check_password_hash(user.user_pass, password):
             session['user_id'] = user.user_id
             session['user_email'] = user.user_email
