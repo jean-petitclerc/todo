@@ -6,6 +6,7 @@ from flask import (Flask,
                    render_template,
                    flash,
                    abort)  # g, escape
+from flask.cli import FlaskGroup
 from werkzeug.security import (generate_password_hash,
                                check_password_hash)
 from flask_bootstrap import Bootstrap
@@ -17,15 +18,15 @@ from wtforms.fields import (StringField,
                             SubmitField,
                             IntegerField,
                             SelectField)  # RadioField
-from wtforms.fields.html5 import DateField
+from wtforms.fields import DateField
 from wtforms.widgets import Select
-from wtforms.widgets.html5 import (DateInput,
-                                   NumberInput)
+from wtforms.widgets import (DateInput,
+                             NumberInput)
 from wtforms.validators import (DataRequired,
                                 Email,
                                 EqualTo,
                                 Optional)  # Length, NumberRange
-from flask_script import Manager
+#from flask_script import Manager
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import desc
 from config import Config
@@ -34,8 +35,9 @@ from datetime import datetime
 from calendar import monthrange
 
 app = Flask(__name__)
+cli = FlaskGroup(app)
 app.config.from_object(Config)
-manager = Manager(app)
+#manager = Manager(app)
 bootstrap = Bootstrap(app)
 db = SQLAlchemy(app)
 dow = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
@@ -2616,4 +2618,4 @@ def db_del_ttag(task_id, tag_id):
 
 # Start the server for the application
 if __name__ == '__main__':
-    manager.run()
+    cli()
