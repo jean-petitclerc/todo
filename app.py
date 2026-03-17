@@ -36,6 +36,7 @@ app = Flask(__name__)
 app.config.from_object('config.DevConfig')
 bootstrap = Bootstrap(app)
 db = SQLAlchemy(app)
+SESSION_EXPIRATION=14400
 
 
 dow = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
@@ -1834,7 +1835,7 @@ def logged_in():
         current_time = datetime.now()
         current_time_naive = current_time.replace(tzinfo=None)
         delta = current_time_naive - active_time_naive
-        if (delta.days > 0) or (delta.seconds > 1800):
+        if (delta.days > 0) or (delta.seconds > SESSION_EXPIRATION):
             flash('Votre session est expirée.')
             return False
         session['active_time'] = datetime.now()
