@@ -11,7 +11,7 @@ python3 -m venv --system-site-packages venv
 pip install Flask
 pip install flask-wtf
 pip install email-validator
-pip install flask-script
+# pip install flask-script
 pip install flask-sqlalchemy
 pip install flask-bootstrap
 sudo apt install postgresql-all
