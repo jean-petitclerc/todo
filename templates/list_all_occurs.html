@@ -2,7 +2,7 @@
 {% block page_content %}
 <div class="container">
     <div class="page-header">
-        <h1>Liste d'occurences de la tâches {{ task.task_name }}</h1>
+        <h1>Liste de toutes les occurences</h1>
     </div>
     <p>
         {% if occurs %}
@@ -10,6 +10,8 @@
             <thead>
                 <tr>
                     <th>Id</th>
+                    <th>Task Id</th>
+                    <th>Sched Id</th>
                     <th>Date cédulée</th>
                     <th>Status</th>
                     <th>Modifié par</th>
@@ -20,6 +22,8 @@
                 {% for occ in occurs %}
                     <tr>
                         <td>{{ occ.occur_id }}</td>
+                        <td>{{ occ.task_id }}</td>
+                        <td>{{ occ.sched_id }}</td>
                         <td>{{ occ.sched_dt }}</td>
                         <td>{{ task_status[occ.status] }}</td>
                         <td>{{ occ.audit_upd_user_name }}</td>
@@ -37,7 +41,7 @@
         {% endif %}
     </p>
     <p>
-        <a href="{{ url_for('upd_task', task_id=task.task_id) }}" class="btn btn-default">Retour</a>
+        <a href="{{ url_for('index') }}" class="btn btn-default">Retour</a>
     </p>
 </div>
 {% endblock %}
