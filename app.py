@@ -1767,13 +1767,16 @@ def list_all_occurs():
     if not logged_in():
         return redirect(url_for('login'))
     try:
-        occurs = TaskOccurence.query.order_by(TaskOccurence.occur_id).all()
+        occurs = TaskOccurence.query\
+            .order_by(TaskOccurence.occur_id).all()
         for occ in occurs:
             if occ.audit_upd_user:
                 u = db_user_by_id(occ.audit_upd_user)
                 occ.audit_upd_user_name = u.user_name()
             else:
                 occ.audit_upd_user_name = 'N/A'
+            t = db_task_by_id(occ.task_id)
+            occ.task_name = t.task_name
         return render_template('list_all_occurs.html', occurs=occurs, task_status=task_status)
     except Exception as e:
         flash("Quelque chose n'a pas fonctionné.")

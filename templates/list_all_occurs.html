@@ -11,6 +11,7 @@
                 <tr>
                     <th>Id</th>
                     <th>Task Id</th>
+                    <th>Task Name</th>
                     <th>Sched Id</th>
                     <th>Date cédulée</th>
                     <th>Status</th>
@@ -23,6 +24,7 @@
                     <tr>
                         <td>{{ occ.occur_id }}</td>
                         <td>{{ occ.task_id }}</td>
+                        <td>{{ occ.task_name }}</td>
                         <td>{{ occ.sched_id }}</td>
                         <td>{{ occ.sched_dt }}</td>
                         <td>{{ task_status[occ.status] }}</td>
